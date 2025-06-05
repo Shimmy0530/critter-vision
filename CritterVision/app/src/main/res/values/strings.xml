@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">CritterVision</string>
+    <string name="dog_vision">Dog</string>
+    <string name="cat_vision">Cat</string>
+    <string name="bird_vision">Bird</string>
+    <string name="original_vision">Original</string>
+    <string name="active_filter_initial_text">Original Vision</string>
+</resources>
