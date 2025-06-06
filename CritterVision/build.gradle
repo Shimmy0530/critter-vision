@@ -9,10 +9,10 @@ task clean(type: Delete) {
     delete rootProject.buildDir
 }
 
-// Allprojects block to ensure mavenCentral() is available for all modules
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
+// Repository declarations are now managed in settings.gradle
+// allprojects {
+//     repositories {
+//         google()
+//         mavenCentral()
+//     }
+// }
