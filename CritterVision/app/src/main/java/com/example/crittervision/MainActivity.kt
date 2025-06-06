@@ -15,6 +15,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
+import androidx.camera.core.UseCaseGroup // Ensure this import is present
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
@@ -124,7 +125,11 @@ class MainActivity : AppCompatActivity() {
                 val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
                 cameraProvider.unbindAll() // Unbind use cases before rebinding
-                cameraProvider.bindToLifecycle(this, cameraSelector, preview)
+                // Wrap Preview in a UseCaseGroup to resolve potential ambiguity
+                val useCaseGroup = UseCaseGroup.Builder()
+                    .addUseCase(preview)
+                    .build()
+                cameraProvider.bindToLifecycle(this, cameraSelector, useCaseGroup)
 
             } catch (e: Exception) { // Catch generic Exception for simplicity, could be more specific
                 Log.e(TAG, "Use case binding failed", e)
