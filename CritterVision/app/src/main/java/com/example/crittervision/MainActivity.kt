@@ -23,6 +23,8 @@ import com.google.common.util.concurrent.ListenableFuture
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+// Removed java.util.concurrent.ExecutionException as it's specifically caught
+// Removed com.google.common.util.concurrent.ListenableFuture as it's used locally in startCamera
 
 class MainActivity : AppCompatActivity() {
 
@@ -36,6 +38,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var previewView: PreviewView
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var activeFilterTextView: TextView
+    private lateinit var colorFilterSurfaceProcessor: ColorFilterSurfaceProcessor
+    private lateinit var glExecutor: ExecutorService // Executor for GL operations in SurfaceProcessor
+
 
     private var currentFilter: VisionColorFilter.FilterType = VisionColorFilter.FilterType.ORIGINAL
 
@@ -46,6 +51,10 @@ class MainActivity : AppCompatActivity() {
         previewView = findViewById(R.id.previewView)
         activeFilterTextView = findViewById(R.id.activeFilterTextView)
         cameraExecutor = Executors.newSingleThreadExecutor()
+        glExecutor = Executors.newSingleThreadExecutor() // Dedicated executor for GL
+        colorFilterSurfaceProcessor = ColorFilterSurfaceProcessor(glExecutor)
+
+        updatePreviewFilter() // Set initial filter state for the processor
 
         // Setup buttons
         val dogVisionButton: Button = findViewById(R.id.dogVisionButton)
@@ -106,18 +115,18 @@ class MainActivity : AppCompatActivity() {
         cameraProviderFuture.addListener({
             try {
                 val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
-                val preview = Preview.Builder().build().also {
-                    it.setSurfaceProvider(previewView.surfaceProvider) // Corrected: previewView.surfaceProvider
-                }
+                val preview = Preview.Builder()
+                    .setSurfaceProcessor(glExecutor, colorFilterSurfaceProcessor) // Use the SurfaceProcessor
+                    .build()
+                    .also {
+                        it.setSurfaceProvider(previewView.surfaceProvider) // Still set the final SurfaceProvider
+                    }
                 val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
                 cameraProvider.unbindAll() // Unbind use cases before rebinding
                 cameraProvider.bindToLifecycle(this, cameraSelector, preview)
 
-            } catch (e: ExecutionException) {
-                Log.e(TAG, "Use case binding failed", e)
-                Toast.makeText(applicationContext, "Error starting camera: ${e.message}", Toast.LENGTH_LONG).show()
-            } catch (e: InterruptedException) {
+            } catch (e: Exception) { // Catch generic Exception for simplicity, could be more specific
                 Log.e(TAG, "Use case binding failed", e)
                 Toast.makeText(applicationContext, "Error starting camera: ${e.message}", Toast.LENGTH_LONG).show()
             }
@@ -126,35 +135,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun updatePreviewFilter() {
         val filter: ColorMatrixColorFilter? = VisionColorFilter.getFilter(currentFilter)
-        // Performance Note: Applying ColorFilter to PreviewView's foreground can be inefficient for real-time camera streams.
-        // If lag is observed, consider using CameraX Effects API (Preview.setEffect with a SurfaceProcessor from androidx.camera:camera-effects)
-        // or an ImageAnalysis use case to process frames and display them on a separate ImageView for better performance.
-        Log.d(TAG, "Attempting to apply filter: $currentFilter")
-
-        // Ensure foreground exists for API 23+
-        if (previewView.foreground == null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            previewView.foreground = ColorDrawable(Color.TRANSPARENT)
+        Log.d(TAG, "Setting filter on SurfaceProcessor: $currentFilter")
+        // Pass the filter to the SurfaceProcessor. It will handle applying it in its GL thread.
+        if(::colorFilterSurfaceProcessor.isInitialized) {
+            colorFilterSurfaceProcessor.setFilter(filter)
         }
-        val foreground: Drawable? = previewView.foreground
-
-        if (foreground != null) {
-            if (filter == null) {
-                // Performance Note: Applying ColorFilter to PreviewView's foreground can be inefficient for real-time camera streams.
-                // If lag is observed, consider using CameraX Effects API (Preview.setEffect with a SurfaceProcessor from androidx.camera:camera-effects)
-                // or an ImageAnalysis use case to process frames and display them on a separate ImageView for better performance.
-                foreground.mutate().clearColorFilter()
-                Log.d(TAG, "Clearing filter from PreviewView")
-            } else {
-                // Performance Note: Applying ColorFilter to PreviewView's foreground can be inefficient for real-time camera streams.
-                // If lag is observed, consider using CameraX Effects API (Preview.setEffect with a SurfaceProcessor from androidx.camera:camera-effects)
-                // or an ImageAnalysis use case to process frames and display them on a separate ImageView for better performance.
-                foreground.mutate().colorFilter = filter // Kotlin property access
-                Log.d(TAG, "Applying new filter to PreviewView")
-            }
-            previewView.invalidate() // Request redraw
-        } else {
-            Log.w(TAG, "PreviewView foreground is null, cannot apply filter.")
-        }
+        // No need to call previewView.invalidate() directly;
+        // the SurfaceProcessor's rendering loop will update the Surface.
     }
 
     private fun updateActiveFilterTextView() {
@@ -170,6 +157,16 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        cameraExecutor.shutdown()
+        if (::glExecutor.isInitialized) {
+            glExecutor.execute {
+                if (::colorFilterSurfaceProcessor.isInitialized) {
+                    colorFilterSurfaceProcessor.release() // Tell processor to release its GL resources
+                }
+            }
+            glExecutor.shutdown()
+        }
+        if (::cameraExecutor.isInitialized) {
+            cameraExecutor.shutdown()
+        }
     }
 }
