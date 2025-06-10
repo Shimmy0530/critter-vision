@@ -2,11 +2,10 @@ package com.example.crittervision
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
-import android.graphics.Paint
+import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -30,6 +29,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private lateinit var previewView: PreviewView
+    private lateinit var filterOverlay: View
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var activeFilterTextView: TextView
 
@@ -42,6 +42,9 @@ class MainActivity : AppCompatActivity() {
         previewView = findViewById(R.id.previewView)
         activeFilterTextView = findViewById(R.id.activeFilterTextView)
         cameraExecutor = Executors.newSingleThreadExecutor()
+
+        // Try to find an existing overlay view in the layout, or create one
+        setupFilterOverlay()
 
         // Setup buttons
         val dogVisionButton: Button = findViewById(R.id.dogVisionButton)
@@ -79,6 +82,23 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupFilterOverlay() {
+        // Create a simple view that acts as our color overlay
+        filterOverlay = View(this)
+        filterOverlay.setBackgroundColor(Color.TRANSPARENT)
+        filterOverlay.visibility = View.GONE
+
+        // Add it to the content view as an overlay
+        val contentView = findViewById<android.view.ViewGroup>(android.R.id.content)
+        val layoutParams = android.view.ViewGroup.LayoutParams(
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT
+        )
+        contentView.addView(filterOverlay, layoutParams)
+
+        Log.d(TAG, "Filter overlay created and added to content view")
+    }
+
     private fun allPermissionsGranted(): Boolean {
         return REQUIRED_PERMISSIONS.all {
             ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
@@ -111,8 +131,7 @@ class MainActivity : AppCompatActivity() {
                 cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(this, cameraSelector, preview)
 
-                // Apply initial filter
-                updatePreviewFilter()
+                Log.d(TAG, "Camera started successfully")
 
             } catch (e: Exception) {
                 Log.e(TAG, "Use case binding failed", e)
@@ -122,30 +141,48 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updatePreviewFilter() {
-        Log.d(TAG, "Setting filter on PreviewView: $currentFilter")
+        Log.d(TAG, "Applying filter: $currentFilter")
 
-        // Apply color filter using ColorMatrixColorFilter on the PreviewView
-        val colorFilter = VisionColorFilter.getFilter(currentFilter)
-
-        if (colorFilter != null) {
-            // Apply the color filter to the PreviewView
-            val paint = Paint()
-            paint.colorFilter = colorFilter
-            previewView.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, paint)
-        } else {
-            // Remove filter
-            previewView.setLayerType(android.view.View.LAYER_TYPE_NONE, null)
+        when (currentFilter) {
+            VisionColorFilter.FilterType.DOG -> {
+                // Dog vision: Yellow overlay to simulate protanopia (red-green color blindness)
+                filterOverlay.setBackgroundColor(Color.argb(120, 255, 255, 0)) // Semi-transparent yellow
+                filterOverlay.visibility = View.VISIBLE
+                Log.d(TAG, "Dog filter applied - yellow overlay visible")
+                Toast.makeText(this, "🐕 Dog Vision Active: Yellow-dominant world", Toast.LENGTH_LONG).show()
+            }
+            VisionColorFilter.FilterType.CAT -> {
+                // Cat vision: Blue-gray overlay for muted colors
+                filterOverlay.setBackgroundColor(Color.argb(100, 100, 150, 200)) // Semi-transparent blue-gray
+                filterOverlay.visibility = View.VISIBLE
+                Log.d(TAG, "Cat filter applied - blue-gray overlay visible")
+                Toast.makeText(this, "🐱 Cat Vision Active: Muted color perception", Toast.LENGTH_LONG).show()
+            }
+            VisionColorFilter.FilterType.BIRD -> {
+                // Bird vision: Light purple overlay to simulate UV perception
+                filterOverlay.setBackgroundColor(Color.argb(80, 200, 100, 255)) // Semi-transparent purple
+                filterOverlay.visibility = View.VISIBLE
+                Log.d(TAG, "Bird filter applied - purple overlay visible")
+                Toast.makeText(this, "🦅 Bird Vision Active: UV-enhanced perception", Toast.LENGTH_LONG).show()
+            }
+            VisionColorFilter.FilterType.ORIGINAL -> {
+                // Original vision: No overlay
+                filterOverlay.visibility = View.GONE
+                Log.d(TAG, "Original filter applied - overlay hidden")
+                Toast.makeText(this, "👁️ Human Vision: Normal color perception", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
     private fun updateActiveFilterTextView() {
         val filterName = when (currentFilter) {
-            VisionColorFilter.FilterType.DOG -> "Dog Vision"
-            VisionColorFilter.FilterType.CAT -> "Cat Vision"
-            VisionColorFilter.FilterType.BIRD -> "Bird Vision"
-            VisionColorFilter.FilterType.ORIGINAL -> "Original Vision"
+            VisionColorFilter.FilterType.DOG -> "🐕 Dog Vision"
+            VisionColorFilter.FilterType.CAT -> "🐱 Cat Vision"
+            VisionColorFilter.FilterType.BIRD -> "🦅 Bird Vision"
+            VisionColorFilter.FilterType.ORIGINAL -> "👁️ Human Vision"
         }
         activeFilterTextView.text = "Current View: $filterName"
+        Log.d(TAG, "Updated filter text to: $filterName")
     }
 
     override fun onDestroy() {
