@@ -43,7 +43,7 @@ class MainActivity : AppCompatActivity() {
         activeFilterTextView = findViewById(R.id.activeFilterTextView)
         cameraExecutor = Executors.newSingleThreadExecutor()
 
-        // Try to find an existing overlay view in the layout, or create one
+        // Create overlay immediately
         setupFilterOverlay()
 
         // Setup buttons
@@ -51,6 +51,9 @@ class MainActivity : AppCompatActivity() {
         val catVisionButton: Button = findViewById(R.id.catVisionButton)
         val birdVisionButton: Button = findViewById(R.id.birdVisionButton)
         val originalVisionButton: Button = findViewById(R.id.originalVisionButton)
+
+        // Make buttons more prominent so they're visible through filters
+        makeButtonsProminent(dogVisionButton, catVisionButton, birdVisionButton, originalVisionButton)
 
         updateActiveFilterTextView()
 
@@ -83,20 +86,36 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupFilterOverlay() {
-        // Create a simple view that acts as our color overlay
+        // Create a simple full-screen overlay
         filterOverlay = View(this)
         filterOverlay.setBackgroundColor(Color.TRANSPARENT)
         filterOverlay.visibility = View.GONE
+        filterOverlay.isClickable = false // Allow clicks to pass through to buttons
+        filterOverlay.isFocusable = false
 
-        // Add it to the content view as an overlay
-        val contentView = findViewById<android.view.ViewGroup>(android.R.id.content)
-        val layoutParams = android.view.ViewGroup.LayoutParams(
+        // Add to the root content view
+        val rootView = findViewById<android.view.ViewGroup>(android.R.id.content)
+        rootView.addView(filterOverlay, android.view.ViewGroup.LayoutParams(
             android.view.ViewGroup.LayoutParams.MATCH_PARENT,
             android.view.ViewGroup.LayoutParams.MATCH_PARENT
-        )
-        contentView.addView(filterOverlay, layoutParams)
+        ))
 
-        Log.d(TAG, "Filter overlay created and added to content view")
+        Log.d(TAG, "Full-screen filter overlay created")
+    }
+
+    private fun makeButtonsProminent(vararg buttons: Button) {
+        buttons.forEach { button ->
+            // Make buttons stand out with white background and bold text
+            button.setBackgroundColor(Color.WHITE)
+            button.setTextColor(Color.BLACK)
+            button.elevation = 8f
+            button.alpha = 0.9f
+        }
+
+        // Make the text view more prominent too
+        activeFilterTextView.setBackgroundColor(Color.argb(200, 255, 255, 255))
+        activeFilterTextView.setTextColor(Color.BLACK)
+        activeFilterTextView.setPadding(16, 8, 16, 8)
     }
 
     private fun allPermissionsGranted(): Boolean {
@@ -145,31 +164,31 @@ class MainActivity : AppCompatActivity() {
 
         when (currentFilter) {
             VisionColorFilter.FilterType.DOG -> {
-                // Dog vision: Yellow overlay to simulate protanopia (red-green color blindness)
-                filterOverlay.setBackgroundColor(Color.argb(120, 255, 255, 0)) // Semi-transparent yellow
+                // Dog vision: Strong yellow overlay
+                filterOverlay.setBackgroundColor(Color.argb(150, 255, 255, 0)) // Stronger yellow
                 filterOverlay.visibility = View.VISIBLE
-                Log.d(TAG, "Dog filter applied - yellow overlay visible")
-                Toast.makeText(this, "🐕 Dog Vision Active: Yellow-dominant world", Toast.LENGTH_LONG).show()
+                Log.d(TAG, "Dog filter applied - STRONG yellow overlay visible")
+                Toast.makeText(this, "🐕 Dog Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.CAT -> {
-                // Cat vision: Blue-gray overlay for muted colors
-                filterOverlay.setBackgroundColor(Color.argb(100, 100, 150, 200)) // Semi-transparent blue-gray
+                // Cat vision: Strong blue-gray overlay
+                filterOverlay.setBackgroundColor(Color.argb(130, 100, 150, 200)) // Stronger blue-gray
                 filterOverlay.visibility = View.VISIBLE
-                Log.d(TAG, "Cat filter applied - blue-gray overlay visible")
-                Toast.makeText(this, "🐱 Cat Vision Active: Muted color perception", Toast.LENGTH_LONG).show()
+                Log.d(TAG, "Cat filter applied - STRONG blue-gray overlay visible")
+                Toast.makeText(this, "🐱 Cat Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.BIRD -> {
-                // Bird vision: Light purple overlay to simulate UV perception
-                filterOverlay.setBackgroundColor(Color.argb(80, 200, 100, 255)) // Semi-transparent purple
+                // Bird vision: Strong purple overlay
+                filterOverlay.setBackgroundColor(Color.argb(110, 200, 100, 255)) // Stronger purple
                 filterOverlay.visibility = View.VISIBLE
-                Log.d(TAG, "Bird filter applied - purple overlay visible")
-                Toast.makeText(this, "🦅 Bird Vision Active: UV-enhanced perception", Toast.LENGTH_LONG).show()
+                Log.d(TAG, "Bird filter applied - STRONG purple overlay visible")
+                Toast.makeText(this, "🦅 Bird Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.ORIGINAL -> {
                 // Original vision: No overlay
                 filterOverlay.visibility = View.GONE
-                Log.d(TAG, "Original filter applied - overlay hidden")
-                Toast.makeText(this, "👁️ Human Vision: Normal color perception", Toast.LENGTH_LONG).show()
+                Log.d(TAG, "Original filter applied - overlay HIDDEN")
+                Toast.makeText(this, "👁️ Human Vision", Toast.LENGTH_SHORT).show()
             }
         }
     }
