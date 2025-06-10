@@ -1,4 +1,4 @@
-package com.example.crittervision
+package com.baltito.crittervision
 
 import android.graphics.ColorMatrix
 import android.graphics.SurfaceTexture
