@@ -6,10 +6,11 @@ import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
 import android.view.View
-import android.widget.Button
+import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -47,13 +48,10 @@ class MainActivity : AppCompatActivity() {
         setupFilterOverlay()
 
         // Setup buttons
-        val dogVisionButton: Button = findViewById(R.id.dogVisionButton)
-        val catVisionButton: Button = findViewById(R.id.catVisionButton)
-        val birdVisionButton: Button = findViewById(R.id.birdVisionButton)
-        val originalVisionButton: Button = findViewById(R.id.originalVisionButton)
-
-        // Make buttons more prominent so they're visible through filters
-        makeButtonsProminent(dogVisionButton, catVisionButton, birdVisionButton, originalVisionButton)
+        val dogVisionButton: ImageButton = findViewById(R.id.dogVisionImageButton)
+        val catVisionButton: ImageButton = findViewById(R.id.catVisionImageButton)
+        val birdVisionButton: ImageButton = findViewById(R.id.birdVisionImageButton)
+        val originalVisionButton: ImageButton = findViewById(R.id.originalVisionImageButton)
 
         updateActiveFilterTextView()
 
@@ -93,29 +91,14 @@ class MainActivity : AppCompatActivity() {
         filterOverlay.isClickable = false // Allow clicks to pass through to buttons
         filterOverlay.isFocusable = false
 
-        // Add to the root content view
-        val rootView = findViewById<android.view.ViewGroup>(android.R.id.content)
-        rootView.addView(filterOverlay, android.view.ViewGroup.LayoutParams(
+        // Add to the main ConstraintLayout
+        val mainLayout = findViewById<ConstraintLayout>(R.id.mainConstraintLayout)
+        mainLayout.addView(filterOverlay, 0, android.view.ViewGroup.LayoutParams(
             android.view.ViewGroup.LayoutParams.MATCH_PARENT,
             android.view.ViewGroup.LayoutParams.MATCH_PARENT
         ))
 
-        Log.d(TAG, "Full-screen filter overlay created")
-    }
-
-    private fun makeButtonsProminent(vararg buttons: Button) {
-        buttons.forEach { button ->
-            // Make buttons stand out with white background and bold text
-            button.setBackgroundColor(Color.WHITE)
-            button.setTextColor(Color.BLACK)
-            button.elevation = 8f
-            button.alpha = 0.9f
-        }
-
-        // Make the text view more prominent too
-        activeFilterTextView.setBackgroundColor(Color.argb(200, 255, 255, 255))
-        activeFilterTextView.setTextColor(Color.BLACK)
-        activeFilterTextView.setPadding(16, 8, 16, 8)
+        Log.d(TAG, "Full-screen filter overlay added to mainConstraintLayout at index 0")
     }
 
     private fun allPermissionsGranted(): Boolean {

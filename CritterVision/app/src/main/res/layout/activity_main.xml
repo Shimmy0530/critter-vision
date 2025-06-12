@@ -2,6 +2,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mainConstraintLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MainActivity">
@@ -21,6 +22,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="8dp"
+        android:elevation="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -32,48 +34,61 @@
             android:textAlignment="center"
             android:text="@string/active_filter_initial_text"
             android:textSize="18sp"
-            android:paddingBottom="8dp"/>
+            android:paddingBottom="8dp"
+            android:elevation="8dp"/>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <Button
-                android:id="@+id/dogVisionButton"
+            <ImageButton
+                android:id="@+id/dogVisionImageButton"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/dog_vision"
+                android:src="@drawable/ic_dog"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:scaleType="fitCenter"
+                android:contentDescription="@string/dog_vision"
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_marginEnd="4dp"/>
 
-            <Button
-                android:id="@+id/catVisionButton"
+            <ImageButton
+                android:id="@+id/catVisionImageButton"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/cat_vision"
-                style="?android:attr/buttonBarButtonStyle"
-                android:layout_marginStart="4dp"
-                android:layout_marginEnd="4dp"/>
-
-            <Button
-                android:id="@+id/birdVisionButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/bird_vision"
+                android:src="@drawable/ic_cat"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:scaleType="fitCenter"
+                android:contentDescription="@string/cat_vision"
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_marginStart="4dp"
                 android:layout_marginEnd="4dp"/>
 
-            <Button
-                android:id="@+id/originalVisionButton"
+            <ImageButton
+                android:id="@+id/birdVisionImageButton"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/original_vision"
+                android:src="@drawable/ic_bird"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:scaleType="fitCenter"
+                android:contentDescription="@string/bird_vision"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"/>
+
+            <ImageButton
+                android:id="@+id/originalVisionImageButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:src="@drawable/ic_eye"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:scaleType="fitCenter"
+                android:contentDescription="@string/original_vision"
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_marginStart="4dp"/>
         </LinearLayout>
