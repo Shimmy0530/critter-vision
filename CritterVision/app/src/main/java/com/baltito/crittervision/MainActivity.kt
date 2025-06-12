@@ -6,11 +6,11 @@ import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -90,15 +90,18 @@ class MainActivity : AppCompatActivity() {
         filterOverlay.visibility = View.GONE
         filterOverlay.isClickable = false // Allow clicks to pass through to buttons
         filterOverlay.isFocusable = false
+        filterOverlay.elevation = 1f // Ensure filterOverlay is above PreviewView's surface
 
-        // Add to the main ConstraintLayout
-        val mainLayout = findViewById<ConstraintLayout>(R.id.mainConstraintLayout)
-        mainLayout.addView(filterOverlay, 0, android.view.ViewGroup.LayoutParams(
+        // Add to the camera_container FrameLayout
+        val cameraContainer = findViewById<FrameLayout>(R.id.camera_container)
+        cameraContainer.addView(filterOverlay, android.view.ViewGroup.LayoutParams(
             android.view.ViewGroup.LayoutParams.MATCH_PARENT,
             android.view.ViewGroup.LayoutParams.MATCH_PARENT
         ))
 
-        Log.d(TAG, "Full-screen filter overlay added to mainConstraintLayout at index 0")
+        Log.d(TAG, "FilterOverlay added to cameraContainer. cameraContainer child count: ${cameraContainer.childCount}")
+        Log.d(TAG, "FilterOverlay Z: ${filterOverlay.z}, Elevation: ${filterOverlay.elevation}")
+        Log.d(TAG, "PreviewView Z: ${previewView.z}, Elevation: ${previewView.elevation}")
     }
 
     private fun allPermissionsGranted(): Boolean {
@@ -143,6 +146,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updatePreviewFilter() {
+        Log.d(TAG, "Updating filter. Overlay parent: ${filterOverlay.parent}, Visibility: ${filterOverlay.visibility}, Alpha: ${filterOverlay.alpha}, Background: ${filterOverlay.background}")
         Log.d(TAG, "Applying filter: $currentFilter")
 
         when (currentFilter) {
@@ -150,27 +154,27 @@ class MainActivity : AppCompatActivity() {
                 // Dog vision: Strong yellow overlay
                 filterOverlay.setBackgroundColor(Color.argb(150, 255, 255, 0)) // Stronger yellow
                 filterOverlay.visibility = View.VISIBLE
-                Log.d(TAG, "Dog filter applied - STRONG yellow overlay visible")
+                Log.d(TAG, "DOG filter: Overlay visibility: ${filterOverlay.visibility}, Color set.")
                 Toast.makeText(this, "🐕 Dog Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.CAT -> {
                 // Cat vision: Strong blue-gray overlay
                 filterOverlay.setBackgroundColor(Color.argb(130, 100, 150, 200)) // Stronger blue-gray
                 filterOverlay.visibility = View.VISIBLE
-                Log.d(TAG, "Cat filter applied - STRONG blue-gray overlay visible")
+                Log.d(TAG, "CAT filter: Overlay visibility: ${filterOverlay.visibility}, Color set.")
                 Toast.makeText(this, "🐱 Cat Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.BIRD -> {
                 // Bird vision: Strong purple overlay
                 filterOverlay.setBackgroundColor(Color.argb(110, 200, 100, 255)) // Stronger purple
                 filterOverlay.visibility = View.VISIBLE
-                Log.d(TAG, "Bird filter applied - STRONG purple overlay visible")
+                Log.d(TAG, "BIRD filter: Overlay visibility: ${filterOverlay.visibility}, Color set.")
                 Toast.makeText(this, "🦅 Bird Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.ORIGINAL -> {
                 // Original vision: No overlay
                 filterOverlay.visibility = View.GONE
-                Log.d(TAG, "Original filter applied - overlay HIDDEN")
+                Log.d(TAG, "ORIGINAL filter: Overlay visibility: ${filterOverlay.visibility}")
                 Toast.makeText(this, "👁️ Human Vision", Toast.LENGTH_SHORT).show()
             }
         }
