@@ -10,7 +10,72 @@ import android.graphics.ColorMatrixColorFilter
 object VisionColorFilter {
 
     enum class FilterType {
-        ORIGINAL, DOG, CAT, BIRD
+        ORIGINAL, DOG, CAT, BIRD, GRAYSCALE
+    }
+
+    /**
+     * Simulates Dog Vision - Protanopia (red-green color blindness)
+     * Based on scientific research showing dogs have dichromatic vision
+     */
+    fun getDogVisionMatrix(): ColorMatrix {
+        return ColorMatrix(floatArrayOf(
+            0.567f, 0.433f, 0.000f, 0f, 0f,
+            0.558f, 0.442f, 0.000f, 0f, 0f,
+            0.000f, 0.242f, 0.758f, 0f, 0f,
+            0.000f, 0.000f, 0.000f, 1f, 0f
+        ))
+    }
+
+    /**
+     * Simulates Cat Vision - Deuteranopia-like vision
+     * Based on research showing cats have limited color discrimination
+     */
+    fun getCatVisionMatrix(): ColorMatrix {
+        return ColorMatrix(floatArrayOf(
+            0.625f, 0.375f, 0.000f, 0f, 0f,
+            0.700f, 0.300f, 0.000f, 0f, 0f,
+            0.000f, 0.300f, 0.700f, 0f, 0f,
+            0.000f, 0.000f, 0.000f, 1f, 0f
+        ))
+    }
+
+    /**
+     * Simulates Bird Vision - Enhanced tetrachromatic vision with UV perception
+     * Birds have superior color vision with four types of cone cells
+     */
+    fun getBirdVisionMatrix(): ColorMatrix {
+        // Enhanced saturation and contrast to simulate tetrachromatic vision
+        val saturationMatrix = ColorMatrix()
+        saturationMatrix.setSaturation(1.8f) // Enhanced color richness
+
+        // UV enhancement simulation - adds violet/purple shift
+        val uvEnhancementMatrix = ColorMatrix(floatArrayOf(
+            1.05f, 0.0f, 0.10f, 0.0f, 8.0f,  // R: Enhanced red + UV contribution
+            0.02f, 1.15f, 0.08f, 0.0f, 3.0f, // G: Enhanced green + UV
+            0.10f, 0.10f, 1.25f, 0.0f, 12.0f, // B: Strong blue + UV (violet)
+            0.0f, 0.0f, 0.0f, 1.0f, 0.0f     // A: Alpha unchanged
+        ))
+
+        saturationMatrix.postConcat(uvEnhancementMatrix)
+
+        // Boost contrast for sharper perception
+        val contrastMatrix = getContrastMatrix(1.12f)
+        saturationMatrix.postConcat(contrastMatrix)
+
+        return saturationMatrix
+    }
+
+    /**
+     * Simulates complete color blindness (Achromatopsia)
+     * Converts everything to grayscale using luminance weights
+     */
+    fun getGrayscaleMatrix(): ColorMatrix {
+        return ColorMatrix(floatArrayOf(
+            0.299f, 0.587f, 0.114f, 0f, 0f,
+            0.299f, 0.587f, 0.114f, 0f, 0f,
+            0.299f, 0.587f, 0.114f, 0f, 0f,
+            0.000f, 0.000f, 0.000f, 1f, 0f
+        ))
     }
 
     // --- Utility: Contrast Matrix ---
@@ -26,90 +91,18 @@ object VisionColorFilter {
         ))
     }
 
-    /**
-     * Simulates Dog Vision - Dichromatic with peaks at 429nm (blue) and 555nm (yellow-green)
-     * Based on Neitz et al. (1989) research showing dogs have protanopia-like vision
-     */
-    fun getDogVisionMatrix(): ColorMatrix {
-        // More accurate dichromatic simulation based on 429nm and 555nm peaks
-        val dogMatrix = ColorMatrix(floatArrayOf(
-            0.625f, 0.375f, 0.0f, 0.0f, 0.0f, // R: Blue+Green mixed, no pure red
-            0.70f, 0.30f, 0.0f, 0.0f, 0.0f,   // G: Shifted toward yellow-green
-            0.0f, 0.30f, 0.70f, 0.0f, 0.0f,   // B: Strong blue response
-            0.0f, 0.0f, 0.0f, 1.0f, 0.0f      // A: Alpha unchanged
-        ))
-        // Reduce saturation (muted world)
-        val saturationMatrix = ColorMatrix()
-        saturationMatrix.setSaturation(0.6f)
-        dogMatrix.postConcat(saturationMatrix)
-        // Slightly reduce contrast
-        val contrastMatrix = getContrastMatrix(0.92f)
-        dogMatrix.postConcat(contrastMatrix)
-        return dogMatrix
-    }
-
-    /**
-     * Simulates Cat Vision - Dichromatic with neutral point at 505nm
-     * Based on Clark & Clark (2016) research showing 460nm and 560nm peaks
-     * Note: Some evidence suggests limited trichromatic ability
-     */
-    fun getCatVisionMatrix(): ColorMatrix {
-        // Dichromatic vision similar to deuteranope (green-red color blind)
-        val catMatrixValues = floatArrayOf(
-            0.40f, 0.60f, -0.20f, 0.0f, 0.0f, // R: Shifted perception
-            0.30f, 0.70f, 0.0f, 0.0f, 0.0f,   // G: Strong green response
-            -0.05f, 0.15f, 0.90f, 0.0f, 0.0f, // B: Blue-dominant
-            0.0f, 0.0f, 0.0f, 1.0f, 0.0f      // A: Alpha unchanged
-        )
-        val cm = ColorMatrix(catMatrixValues)
-        // Reduce saturation (muted colors)
-        val saturationMatrix = ColorMatrix()
-        saturationMatrix.setSaturation(0.65f)
-        cm.postConcat(saturationMatrix)
-        // Slightly reduce contrast
-        val contrastMatrix = getContrastMatrix(0.95f)
-        cm.postConcat(contrastMatrix)
-        // Slight brightness boost for low-light adaptation
-        val brightnessMatrix = ColorMatrix()
-        brightnessMatrix.setScale(1.10f, 1.10f, 1.10f, 1.0f)
-        cm.postConcat(brightnessMatrix)
-        return cm
-    }
-
-    /**
-     * Simulates Bird Vision - Tetrachromatic with UV perception (320-400nm)
-     * Based on research showing peaks at ~360nm (UV), 450nm (blue), 510-540nm (green), 565-620nm (red)
-     * Birds see dramatically enhanced colors and ultraviolet patterns
-     */
-    fun getBirdVisionMatrix(): ColorMatrix {
-        // Enhanced tetrachromatic vision simulation
-        // Increased saturation to represent richer color perception
-        val saturationMatrix = ColorMatrix()
-        saturationMatrix.setSaturation(2.2f) // Higher than original for tetrachromatic richness
-        // UV perception simulation - adds purple/violet shift to represent UV detection
-        val uvEnhancementMatrix = ColorMatrix(floatArrayOf(
-            1.1f, 0.0f, 0.15f, 0.0f, 10.0f, // R: Enhanced red + UV contribution
-            0.05f, 1.2f, 0.10f, 0.0f, 5.0f, // G: Enhanced green + UV
-            0.15f, 0.15f, 1.3f, 0.0f, 15.0f, // B: Strong blue + UV (violet)
-            0.0f, 0.0f, 0.0f, 1.0f, 0.0f    // A: Alpha unchanged
-        ))
-        saturationMatrix.postConcat(uvEnhancementMatrix)
-        // Boost contrast for sharper perception
-        val contrastMatrix = getContrastMatrix(1.15f)
-        saturationMatrix.postConcat(contrastMatrix)
-        return saturationMatrix
-    }
-
     // --- ColorMatrixColorFilter methods ---
     fun getDogVisionFilter(): ColorMatrixColorFilter = ColorMatrixColorFilter(getDogVisionMatrix())
     fun getCatVisionFilter(): ColorMatrixColorFilter = ColorMatrixColorFilter(getCatVisionMatrix())
     fun getBirdVisionFilter(): ColorMatrixColorFilter = ColorMatrixColorFilter(getBirdVisionMatrix())
+    fun getGrayscaleFilter(): ColorMatrixColorFilter = ColorMatrixColorFilter(getGrayscaleMatrix())
 
     fun getFilter(type: FilterType): ColorMatrixColorFilter? {
         return when (type) {
             FilterType.DOG -> getDogVisionFilter()
             FilterType.CAT -> getCatVisionFilter()
             FilterType.BIRD -> getBirdVisionFilter()
+            FilterType.GRAYSCALE -> getGrayscaleFilter()
             FilterType.ORIGINAL -> null
         }
     }
@@ -120,6 +113,7 @@ object VisionColorFilter {
             FilterType.DOG -> getDogVisionMatrix()
             FilterType.CAT -> getCatVisionMatrix()
             FilterType.BIRD -> getBirdVisionMatrix()
+            FilterType.GRAYSCALE -> getGrayscaleMatrix()
             FilterType.ORIGINAL -> null
         }
     }
@@ -129,9 +123,10 @@ object VisionColorFilter {
      */
     fun getVisionDescription(type: FilterType): String {
         return when (type) {
-            FilterType.DOG -> "Dichromatic vision (429nm, 555nm peaks) - similar to red-green color blindness"
-            FilterType.CAT -> "Dichromatic vision (460nm, 560nm peaks) - neutral point at 505nm"
-            FilterType.BIRD -> "Tetrachromatic vision with UV perception (320-400nm) - four color dimensions"
+            FilterType.DOG -> "Protanopia - Dichromatic vision missing long-wavelength (red) cones"
+            FilterType.CAT -> "Deuteranopia-like - Limited red-green discrimination, enhanced blue sensitivity"
+            FilterType.BIRD -> "Tetrachromatic vision with UV perception - Four color dimensions including ultraviolet"
+            FilterType.GRAYSCALE -> "Achromatopsia - Complete color blindness, grayscale vision only"
             FilterType.ORIGINAL -> "Human trichromatic vision (420nm, 534nm, 564nm peaks)"
         }
     }

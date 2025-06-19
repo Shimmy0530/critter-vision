@@ -2,11 +2,8 @@ package com.baltito.crittervision
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
-import android.view.View
-import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
@@ -30,7 +27,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private lateinit var previewView: PreviewView
-    private lateinit var filterOverlay: View
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var activeFilterTextView: TextView
 
@@ -43,9 +39,6 @@ class MainActivity : AppCompatActivity() {
         previewView = findViewById(R.id.previewView)
         activeFilterTextView = findViewById(R.id.activeFilterTextView)
         cameraExecutor = Executors.newSingleThreadExecutor()
-
-        // Create overlay immediately
-        setupFilterOverlay()
 
         // Setup buttons
         val dogVisionButton: ImageButton = findViewById(R.id.dogVisionImageButton)
@@ -81,27 +74,6 @@ class MainActivity : AppCompatActivity() {
         } else {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
         }
-    }
-
-    private fun setupFilterOverlay() {
-        // Create a simple full-screen overlay
-        filterOverlay = View(this)
-        filterOverlay.setBackgroundColor(Color.TRANSPARENT)
-        filterOverlay.visibility = View.GONE
-        filterOverlay.isClickable = false // Allow clicks to pass through to buttons
-        filterOverlay.isFocusable = false
-        filterOverlay.elevation = 1f // Ensure filterOverlay is above PreviewView's surface
-
-        // Add to the camera_container FrameLayout
-        val cameraContainer = findViewById<FrameLayout>(R.id.camera_container)
-        cameraContainer.addView(filterOverlay, android.view.ViewGroup.LayoutParams(
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT
-        ))
-
-        Log.d(TAG, "FilterOverlay added to cameraContainer. cameraContainer child count: ${cameraContainer.childCount}")
-        Log.d(TAG, "FilterOverlay Z: ${filterOverlay.z}, Elevation: ${filterOverlay.elevation}")
-        Log.d(TAG, "PreviewView Z: ${previewView.z}, Elevation: ${previewView.elevation}")
     }
 
     private fun allPermissionsGranted(): Boolean {
@@ -146,36 +118,37 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updatePreviewFilter() {
-        Log.d(TAG, "Updating filter. Overlay parent: ${filterOverlay.parent}, Visibility: ${filterOverlay.visibility}, Alpha: ${filterOverlay.alpha}, Background: ${filterOverlay.background}")
-        Log.d(TAG, "Applying filter: $currentFilter")
+        Log.d(TAG, "Applying realistic filter: $currentFilter")
+
+        // Apply the color matrix filter directly to the PreviewView
+        val colorFilter = VisionColorFilter.getFilter(currentFilter)
+
+        runOnUiThread {
+            // Apply the filter to the PreviewView's surface
+            if (colorFilter != null) {
+                previewView.foreground = android.graphics.drawable.ColorDrawable().apply {
+                    this.colorFilter = colorFilter
+                }
+            } else {
+                previewView.foreground = null
+            }
+        }
 
         when (currentFilter) {
             VisionColorFilter.FilterType.DOG -> {
-                // Dog vision: Strong yellow overlay
-                filterOverlay.setBackgroundColor(Color.argb(150, 255, 255, 0)) // Stronger yellow
-                filterOverlay.visibility = View.VISIBLE
-                Log.d(TAG, "DOG filter: Overlay visibility: ${filterOverlay.visibility}, Color set.")
-                Toast.makeText(this, "🐕 Dog Vision", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "🐕 Dog Vision (Protanopia)", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.CAT -> {
-                // Cat vision: Strong blue-gray overlay
-                filterOverlay.setBackgroundColor(Color.argb(130, 100, 150, 200)) // Stronger blue-gray
-                filterOverlay.visibility = View.VISIBLE
-                Log.d(TAG, "CAT filter: Overlay visibility: ${filterOverlay.visibility}, Color set.")
-                Toast.makeText(this, "🐱 Cat Vision", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "🐱 Cat Vision (Deuteranopia-like)", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.BIRD -> {
-                // Bird vision: Strong purple overlay
-                filterOverlay.setBackgroundColor(Color.argb(110, 200, 100, 255)) // Stronger purple
-                filterOverlay.visibility = View.VISIBLE
-                Log.d(TAG, "BIRD filter: Overlay visibility: ${filterOverlay.visibility}, Color set.")
-                Toast.makeText(this, "🦅 Bird Vision", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "🦅 Bird Vision (Tetrachromatic + UV)", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.ORIGINAL -> {
-                // Original vision: No overlay
-                filterOverlay.visibility = View.GONE
-                Log.d(TAG, "ORIGINAL filter: Overlay visibility: ${filterOverlay.visibility}")
                 Toast.makeText(this, "👁️ Human Vision", Toast.LENGTH_SHORT).show()
+            }
+            VisionColorFilter.FilterType.GRAYSCALE -> {
+                Toast.makeText(this, "⚫ Grayscale Vision", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -185,6 +158,7 @@ class MainActivity : AppCompatActivity() {
             VisionColorFilter.FilterType.DOG -> "🐕 Dog Vision"
             VisionColorFilter.FilterType.CAT -> "🐱 Cat Vision"
             VisionColorFilter.FilterType.BIRD -> "🦅 Bird Vision"
+            VisionColorFilter.FilterType.GRAYSCALE -> "⚫ Grayscale Vision"
             VisionColorFilter.FilterType.ORIGINAL -> "👁️ Human Vision"
         }
         activeFilterTextView.text = "Current View: $filterName"

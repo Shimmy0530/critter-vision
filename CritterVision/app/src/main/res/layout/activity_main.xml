@@ -52,54 +52,67 @@
         android:layout_marginBottom="16dp">
 
         <ImageButton
-                android:id="@+id/dogVisionImageButton"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:src="@drawable/ic_dog"
-                android:background="@drawable/icon_background"
-                android:padding="12dp"
-                android:scaleType="fitCenter"
-                android:contentDescription="@string/dog_vision"
-                android:layout_marginEnd="4dp"/>
+            android:id="@+id/dogVisionImageButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:src="@drawable/ic_dog"
+            android:background="@drawable/icon_background"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:contentDescription="@string/dog_vision"
+            android:layout_marginEnd="3dp"/>
 
-            <ImageButton
-                android:id="@+id/catVisionImageButton"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:src="@drawable/ic_cat"
-                android:background="@drawable/icon_background"
-                android:padding="12dp"
-                android:scaleType="fitCenter"
-                android:contentDescription="@string/cat_vision"
-                android:layout_marginStart="4dp"
-                android:layout_marginEnd="4dp"/>
+        <ImageButton
+            android:id="@+id/catVisionImageButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:src="@drawable/ic_cat"
+            android:background="@drawable/icon_background"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:contentDescription="@string/cat_vision"
+            android:layout_marginStart="3dp"
+            android:layout_marginEnd="3dp"/>
 
-            <ImageButton
-                android:id="@+id/birdVisionImageButton"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:src="@drawable/ic_bird"
-                android:background="@drawable/icon_background"
-                android:padding="12dp"
-                android:scaleType="fitCenter"
-                android:contentDescription="@string/bird_vision"
-                android:layout_marginStart="4dp"
-                android:layout_marginEnd="4dp"/>
+        <ImageButton
+            android:id="@+id/birdVisionImageButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:src="@drawable/ic_bird"
+            android:background="@drawable/icon_background"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:contentDescription="@string/bird_vision"
+            android:layout_marginStart="3dp"
+            android:layout_marginEnd="3dp"/>
 
-            <ImageButton
-                android:id="@+id/originalVisionImageButton"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:src="@drawable/ic_eye"
-                android:background="@drawable/icon_background"
-                android:padding="12dp"
-                android:scaleType="fitCenter"
-                android:contentDescription="@string/original_vision"
-                android:layout_marginStart="4dp"/>
+        <ImageButton
+            android:id="@+id/grayscaleVisionImageButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:src="@android:drawable/ic_menu_view"
+            android:background="@drawable/icon_background"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:contentDescription="Grayscale Vision"
+            android:layout_marginStart="3dp"
+            android:layout_marginEnd="3dp"/>
+
+        <ImageButton
+            android:id="@+id/originalVisionImageButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:src="@drawable/ic_eye"
+            android:background="@drawable/icon_background"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:contentDescription="@string/original_vision"
+            android:layout_marginStart="3dp"/>
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
