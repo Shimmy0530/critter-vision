@@ -29,6 +29,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var previewView: PreviewView
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var activeFilterTextView: TextView
+    private lateinit var colorFilterSurfaceProcessor: ColorFilterSurfaceProcessor
 
     private var currentFilter: VisionColorFilter.FilterType = VisionColorFilter.FilterType.ORIGINAL
 
@@ -39,6 +40,7 @@ class MainActivity : AppCompatActivity() {
         previewView = findViewById(R.id.previewView)
         activeFilterTextView = findViewById(R.id.activeFilterTextView)
         cameraExecutor = Executors.newSingleThreadExecutor()
+        colorFilterSurfaceProcessor = ColorFilterSurfaceProcessor(cameraExecutor)
 
         // Setup buttons
         val dogVisionButton: ImageButton = findViewById(R.id.dogVisionImageButton)
@@ -100,6 +102,7 @@ class MainActivity : AppCompatActivity() {
                 val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
 
                 val preview = Preview.Builder()
+                    .setSurfaceProcessor(cameraExecutor, colorFilterSurfaceProcessor)
                     .build()
 
                 preview.setSurfaceProvider(previewView.surfaceProvider)
@@ -109,6 +112,8 @@ class MainActivity : AppCompatActivity() {
                 cameraProvider.bindToLifecycle(this, cameraSelector, preview)
 
                 Log.d(TAG, "Camera started successfully")
+                // Apply the initial filter once the camera is bound and processor is active
+                updatePreviewFilter()
 
             } catch (e: Exception) {
                 Log.e(TAG, "Use case binding failed", e)
@@ -120,19 +125,8 @@ class MainActivity : AppCompatActivity() {
     private fun updatePreviewFilter() {
         Log.d(TAG, "Applying realistic filter: $currentFilter")
 
-        // Apply the color matrix filter directly to the PreviewView
-        val colorFilter = VisionColorFilter.getFilter(currentFilter)
-
-        runOnUiThread {
-            // Apply the filter to the PreviewView's surface
-            if (colorFilter != null) {
-                previewView.foreground = android.graphics.drawable.ColorDrawable().apply {
-                    this.colorFilter = colorFilter
-                }
-            } else {
-                previewView.foreground = null
-            }
-        }
+        // Apply the color matrix filter using ColorFilterSurfaceProcessor
+        colorFilterSurfaceProcessor.setFilter(VisionColorFilter.getMatrix(currentFilter))
 
         when (currentFilter) {
             VisionColorFilter.FilterType.DOG -> {
