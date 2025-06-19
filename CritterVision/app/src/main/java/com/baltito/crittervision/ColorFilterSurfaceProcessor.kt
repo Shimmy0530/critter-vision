@@ -158,9 +158,7 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
         }
     }
 
-    // (The rest of your file remains unchanged, including onInputSurface, onOutputSurface, initEGL, initGLResources, loadShader, applyShaderUniforms, drawFrame, release, etc.)
-    // ... (Paste the rest of your file here unchanged)
-override fun onInputSurface(request: SurfaceRequest) {
+    override fun onInputSurface(request: SurfaceRequest) {
         Log.d(TAG, "onInputSurface requested. Resolution: ${request.resolution}")
         if (isReleased) {
             Log.w(TAG, "onInputSurface: Processor already released. Will not provide surface.")
@@ -185,10 +183,10 @@ override fun onInputSurface(request: SurfaceRequest) {
                         Log.w(TAG, "OnFrameAvailableListener: Processor released. Ignoring frame.")
                         return@setOnFrameAvailableListener
                     }
-                    glExecutor.execute {
+                    glExecutor.execute frameProcessing@{
                         if (isReleased || eglDisplay == null || eglContext == null || eglSurface == null || surfaceOutput == null) {
                             Log.w(TAG, "OnFrameAvailableListener: GL context not ready or output missing. Skipping frame.")
-                            return@execute
+                            return@frameProcessing
                         }
                         try {
                             if (egl.eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext)) {
@@ -207,8 +205,8 @@ override fun onInputSurface(request: SurfaceRequest) {
                 Log.d(TAG, "Providing camera surface: $cameraSurface")
                 request.provideSurface(cameraSurface!!, glExecutor) { result ->
                     Log.d(TAG, "Camera input surface released by CameraX. Result code: ${result.resultCode}")
-                    glExecutor.execute {
-                        if (isReleased) return@execute
+                    glExecutor.execute surfaceCleanup@{
+                        if (isReleased) return@surfaceCleanup
                         surfaceTexture?.release()
                         cameraSurface?.release()
                         surfaceTexture = null
@@ -226,7 +224,7 @@ override fun onInputSurface(request: SurfaceRequest) {
     }
 
     override fun onOutputSurface(surfaceOutput: SurfaceOutput) {
-        Log.d(TAG, "onOutputSurface provided. SurfaceOutput: $surfaceOutput") // FIXED: Updated log message
+        Log.d(TAG, "onOutputSurface provided. SurfaceOutput: $surfaceOutput")
         if (isReleased) {
             Log.w(TAG, "onOutputSurface: Processor already released.")
             return
@@ -238,14 +236,14 @@ override fun onInputSurface(request: SurfaceRequest) {
                 this.surfaceOutput?.close()
                 this.surfaceOutput = surfaceOutput
 
-                val outputSurface = surfaceOutput.getSurface(glExecutor) { event -> // FIXED: Use getSurface correctly
+                val outputSurface = surfaceOutput.getSurface(glExecutor) { event ->
                     Log.d(TAG, "SurfaceOutput event: ${event.eventCode}")
                     if (event.eventCode == SurfaceOutput.Event.EVENT_REQUEST_CLOSE) {
                         Log.w(TAG, "Output surface close requested by provider.")
                     }
                 }
 
-                initEGL(outputSurface) // FIXED: Pass the Surface directly
+                initEGL(outputSurface)
                 setFilter(currentColorMatrix)
 
                 Log.d(TAG, "EGL initialized for output surface.")
