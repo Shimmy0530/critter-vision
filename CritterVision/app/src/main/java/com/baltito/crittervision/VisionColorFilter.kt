@@ -13,19 +13,39 @@ object VisionColorFilter {
         ORIGINAL, DOG, CAT, BIRD
     }
 
+    // --- Utility: Contrast Matrix ---
+    private fun getContrastMatrix(contrast: Float): ColorMatrix {
+        // contrast >1 increases, <1 decreases. 1.0 = no change.
+        val scale = contrast
+        val translate = (-0.5f * scale + 0.5f) * 255f
+        return ColorMatrix(floatArrayOf(
+            scale, 0f, 0f, 0f, translate,
+            0f, scale, 0f, 0f, translate,
+            0f, 0f, scale, 0f, translate,
+            0f, 0f, 0f, 1f, 0f
+        ))
+    }
+
     /**
      * Simulates Dog Vision - Dichromatic with peaks at 429nm (blue) and 555nm (yellow-green)
      * Based on Neitz et al. (1989) research showing dogs have protanopia-like vision
      */
     fun getDogVisionMatrix(): ColorMatrix {
         // More accurate dichromatic simulation based on 429nm and 555nm peaks
-        val dogMatrix = floatArrayOf(
-            0.625f, 0.375f, 0.0f,     0.0f, 0.0f,  // R: Blue+Green mixed, no pure red
-            0.70f,  0.30f,  0.0f,     0.0f, 0.0f,  // G: Shifted toward yellow-green
-            0.0f,   0.30f,  0.70f,    0.0f, 0.0f,  // B: Strong blue response
-            0.0f,   0.0f,   0.0f,     1.0f, 0.0f   // A: Alpha unchanged
-        )
-        return ColorMatrix(dogMatrix)
+        val dogMatrix = ColorMatrix(floatArrayOf(
+            0.625f, 0.375f, 0.0f, 0.0f, 0.0f, // R: Blue+Green mixed, no pure red
+            0.70f, 0.30f, 0.0f, 0.0f, 0.0f,   // G: Shifted toward yellow-green
+            0.0f, 0.30f, 0.70f, 0.0f, 0.0f,   // B: Strong blue response
+            0.0f, 0.0f, 0.0f, 1.0f, 0.0f      // A: Alpha unchanged
+        ))
+        // Reduce saturation (muted world)
+        val saturationMatrix = ColorMatrix()
+        saturationMatrix.setSaturation(0.6f)
+        dogMatrix.postConcat(saturationMatrix)
+        // Slightly reduce contrast
+        val contrastMatrix = getContrastMatrix(0.92f)
+        dogMatrix.postConcat(contrastMatrix)
+        return dogMatrix
     }
 
     /**
@@ -36,16 +56,22 @@ object VisionColorFilter {
     fun getCatVisionMatrix(): ColorMatrix {
         // Dichromatic vision similar to deuteranope (green-red color blind)
         val catMatrixValues = floatArrayOf(
-            0.40f,   0.60f,  -0.20f,  0.0f, 0.0f,  // R: Shifted perception
-            0.30f,   0.70f,   0.0f,   0.0f, 0.0f,  // G: Strong green response
-            -0.05f,  0.15f,   0.90f,  0.0f, 0.0f,  // B: Blue-dominant
-            0.0f,    0.0f,    0.0f,   1.0f, 0.0f   // A: Alpha unchanged
+            0.40f, 0.60f, -0.20f, 0.0f, 0.0f, // R: Shifted perception
+            0.30f, 0.70f, 0.0f, 0.0f, 0.0f,   // G: Strong green response
+            -0.05f, 0.15f, 0.90f, 0.0f, 0.0f, // B: Blue-dominant
+            0.0f, 0.0f, 0.0f, 1.0f, 0.0f      // A: Alpha unchanged
         )
         val cm = ColorMatrix(catMatrixValues)
-
-        // Cats have excellent low-light vision - slight brightness enhancement
+        // Reduce saturation (muted colors)
+        val saturationMatrix = ColorMatrix()
+        saturationMatrix.setSaturation(0.65f)
+        cm.postConcat(saturationMatrix)
+        // Slightly reduce contrast
+        val contrastMatrix = getContrastMatrix(0.95f)
+        cm.postConcat(contrastMatrix)
+        // Slight brightness boost for low-light adaptation
         val brightnessMatrix = ColorMatrix()
-        brightnessMatrix.setScale(1.15f, 1.15f, 1.15f, 1.0f)
+        brightnessMatrix.setScale(1.10f, 1.10f, 1.10f, 1.0f)
         cm.postConcat(brightnessMatrix)
         return cm
     }
@@ -60,21 +86,21 @@ object VisionColorFilter {
         // Increased saturation to represent richer color perception
         val saturationMatrix = ColorMatrix()
         saturationMatrix.setSaturation(2.2f) // Higher than original for tetrachromatic richness
-
         // UV perception simulation - adds purple/violet shift to represent UV detection
         val uvEnhancementMatrix = ColorMatrix(floatArrayOf(
-            1.1f,  0.0f,  0.15f, 0.0f, 10.0f,  // R: Enhanced red + UV contribution
-            0.05f, 1.2f,  0.10f, 0.0f, 5.0f,   // G: Enhanced green + UV
-            0.15f, 0.15f, 1.3f,  0.0f, 15.0f,  // B: Strong blue + UV (violet)
-            0.0f,  0.0f,  0.0f,  1.0f, 0.0f    // A: Alpha unchanged
+            1.1f, 0.0f, 0.15f, 0.0f, 10.0f, // R: Enhanced red + UV contribution
+            0.05f, 1.2f, 0.10f, 0.0f, 5.0f, // G: Enhanced green + UV
+            0.15f, 0.15f, 1.3f, 0.0f, 15.0f, // B: Strong blue + UV (violet)
+            0.0f, 0.0f, 0.0f, 1.0f, 0.0f    // A: Alpha unchanged
         ))
-
-        // Combine saturation boost with UV enhancement
         saturationMatrix.postConcat(uvEnhancementMatrix)
+        // Boost contrast for sharper perception
+        val contrastMatrix = getContrastMatrix(1.15f)
+        saturationMatrix.postConcat(contrastMatrix)
         return saturationMatrix
     }
 
-    // Keep existing ColorMatrixColorFilter methods for backward compatibility
+    // --- ColorMatrixColorFilter methods ---
     fun getDogVisionFilter(): ColorMatrixColorFilter = ColorMatrixColorFilter(getDogVisionMatrix())
     fun getCatVisionFilter(): ColorMatrixColorFilter = ColorMatrixColorFilter(getCatVisionMatrix())
     fun getBirdVisionFilter(): ColorMatrixColorFilter = ColorMatrixColorFilter(getBirdVisionMatrix())

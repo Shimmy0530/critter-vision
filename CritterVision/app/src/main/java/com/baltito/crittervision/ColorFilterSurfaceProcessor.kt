@@ -62,17 +62,14 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
     private val vertexBuffer: FloatBuffer
     private val texCoordBuffer: FloatBuffer
 
-    private var currentColorMatrix: ColorMatrix? = null // FIXED: Changed from ColorMatrixColorFilter to ColorMatrix
+    private var currentColorMatrix: ColorMatrix? = null
     private val glMatrix = FloatArray(16)
     private val glOffset = FloatArray(4)
 
     @Volatile private var isReleased = false
 
-    // Resources for camera input
     private var surfaceTexture: SurfaceTexture? = null
     private var cameraSurface: Surface? = null
-
-    // Output surface provided by CameraX
     private var surfaceOutput: SurfaceOutput? = null
 
     init {
@@ -93,24 +90,62 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
         setFilter(null)
     }
 
-    fun setFilter(colorMatrix: ColorMatrix?) { // FIXED: Changed parameter from ColorMatrixColorFilter to ColorMatrix
-        currentColorMatrix = colorMatrix
-        if (colorMatrix != null) {
-            val matrixSrc = colorMatrix.array // FIXED: Direct access to array property
-            glMatrix[0]=matrixSrc[0];  glMatrix[4]=matrixSrc[1];  glMatrix[8]=matrixSrc[2];   glMatrix[12]=matrixSrc[3];
-            glMatrix[1]=matrixSrc[5];  glMatrix[5]=matrixSrc[6];  glMatrix[9]=matrixSrc[7];   glMatrix[13]=matrixSrc[8];
-            glMatrix[2]=matrixSrc[10]; glMatrix[6]=matrixSrc[11]; glMatrix[10]=matrixSrc[12]; glMatrix[14]=matrixSrc[13];
-            glMatrix[3]=matrixSrc[15]; glMatrix[7]=matrixSrc[16]; glMatrix[11]=matrixSrc[17]; glMatrix[15]=matrixSrc[18];
-            glOffset[0] = matrixSrc[4] / 255.0f;
-            glOffset[1] = matrixSrc[9] / 255.0f;
-            glOffset[2] = matrixSrc[14] / 255.0f;
-            glOffset[3] = matrixSrc[19] / 255.0f;
-        } else {
-            glMatrix.fill(0f); glOffset.fill(0f)
-            glMatrix[0]=1f; glMatrix[5]=1f; glMatrix[10]=1f; glMatrix[15]=1f;
-        }
+    // Utility: Create a saturation adjustment matrix
+    private fun createSaturationMatrix(saturation: Float): ColorMatrix {
+        val matrix = ColorMatrix()
+        matrix.setSaturation(saturation)
+        return matrix
+    }
 
-        // If EGL context is initialized, apply the filter on GL thread
+    // Utility: Create a contrast adjustment matrix
+    private fun createContrastMatrix(contrast: Float): ColorMatrix {
+        val scale = contrast
+        val translate = (-0.5f * scale + 0.5f) * 255f
+        return ColorMatrix(floatArrayOf(
+            scale, 0f, 0f, 0f, translate,
+            0f, scale, 0f, 0f, translate,
+            0f, 0f, scale, 0f, translate,
+            0f, 0f, 0f, 1f, 0f
+        ))
+    }
+
+    /**
+     * Set filter with optional saturation and contrast adjustments.
+     * @param colorMatrix: The animal vision color matrix (or null for identity)
+     * @param saturation: Optional saturation adjustment (1.0 = no change)
+     * @param contrast: Optional contrast adjustment (1.0 = no change)
+     */
+    fun setFilter(
+        colorMatrix: ColorMatrix?,
+        saturation: Float = 1.0f,
+        contrast: Float = 1.0f
+    ) {
+        val combinedMatrix = ColorMatrix()
+        if (colorMatrix != null) {
+            combinedMatrix.set(colorMatrix)
+        }
+        // Apply saturation adjustment
+        if (saturation != 1.0f) {
+            val satMatrix = createSaturationMatrix(saturation)
+            combinedMatrix.postConcat(satMatrix)
+        }
+        // Apply contrast adjustment
+        if (contrast != 1.0f) {
+            val contMatrix = createContrastMatrix(contrast)
+            combinedMatrix.postConcat(contMatrix)
+        }
+        currentColorMatrix = combinedMatrix
+
+        val matrixSrc = combinedMatrix.array
+        glMatrix[0]=matrixSrc[0];  glMatrix[4]=matrixSrc[1];  glMatrix[8]=matrixSrc[2];   glMatrix[12]=matrixSrc[3];
+        glMatrix[1]=matrixSrc[5];  glMatrix[5]=matrixSrc[6];  glMatrix[9]=matrixSrc[7];   glMatrix[13]=matrixSrc[8];
+        glMatrix[2]=matrixSrc[10]; glMatrix[6]=matrixSrc[11]; glMatrix[10]=matrixSrc[12]; glMatrix[14]=matrixSrc[13];
+        glMatrix[3]=matrixSrc[15]; glMatrix[7]=matrixSrc[16]; glMatrix[11]=matrixSrc[17]; glMatrix[15]=matrixSrc[18];
+        glOffset[0] = matrixSrc[4] / 255.0f;
+        glOffset[1] = matrixSrc[9] / 255.0f;
+        glOffset[2] = matrixSrc[14] / 255.0f;
+        glOffset[3] = matrixSrc[19] / 255.0f;
+
         if (eglDisplay != null && eglContext != null && eglSurface != null) {
             glExecutor.execute {
                 if (isReleased) return@execute
@@ -123,7 +158,9 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
         }
     }
 
-    override fun onInputSurface(request: SurfaceRequest) {
+    // (The rest of your file remains unchanged, including onInputSurface, onOutputSurface, initEGL, initGLResources, loadShader, applyShaderUniforms, drawFrame, release, etc.)
+    // ... (Paste the rest of your file here unchanged)
+override fun onInputSurface(request: SurfaceRequest) {
         Log.d(TAG, "onInputSurface requested. Resolution: ${request.resolution}")
         if (isReleased) {
             Log.w(TAG, "onInputSurface: Processor already released. Will not provide surface.")
