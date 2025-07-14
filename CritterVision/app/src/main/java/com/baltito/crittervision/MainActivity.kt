@@ -6,9 +6,6 @@ import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.PorterDuff
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
-import android.graphics.PorterDuff
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -38,7 +35,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var activeFilterTextView: TextView
     private lateinit var filterOverlay: View
-    private lateinit var filterOverlay: View
 
     private var currentFilter: VisionColorFilter.FilterType = VisionColorFilter.FilterType.ORIGINAL
 
@@ -50,8 +46,6 @@ class MainActivity : AppCompatActivity() {
         activeFilterTextView = findViewById(R.id.activeFilterTextView)
         cameraExecutor = Executors.newSingleThreadExecutor()
 
-        // Create overlay for applying color filters
-        setupFilterOverlay()
         // Create overlay for applying color filters
         setupFilterOverlay()
 
@@ -92,24 +86,6 @@ class MainActivity : AppCompatActivity() {
         } else {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
         }
-    }
-
-    private fun setupFilterOverlay() {
-        // Create a full-screen overlay for applying color filters
-        filterOverlay = View(this)
-        filterOverlay.setBackgroundColor(Color.TRANSPARENT)
-        filterOverlay.visibility = View.GONE
-        filterOverlay.isClickable = false // Allow clicks to pass through to buttons
-        filterOverlay.isFocusable = false
-
-        // Add to the root content view
-        val rootView = findViewById<android.view.ViewGroup>(android.R.id.content)
-        rootView.addView(filterOverlay, android.view.ViewGroup.LayoutParams(
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT
-        ))
-
-        Log.d(TAG, "Filter overlay created")
     }
 
     private fun setupFilterOverlay() {
@@ -179,7 +155,6 @@ class MainActivity : AppCompatActivity() {
                 cameraProvider.bindToLifecycle(this, cameraSelector, preview)
 
                 Log.d(TAG, "Camera started successfully")
-                Log.d(TAG, "Camera started successfully")
 
             } catch (e: Exception) {
                 Log.e(TAG, "Use case binding failed", e)
@@ -193,47 +168,44 @@ class MainActivity : AppCompatActivity() {
 
         when (currentFilter) {
             VisionColorFilter.FilterType.DOG -> {
-                // Apply dog vision filter using color matrix overlay
-                applyColorMatrixFilter(VisionColorFilter.getDogVisionMatrix())
-                // Apply dog vision filter using color matrix overlay
-                applyColorMatrixFilter(VisionColorFilter.getDogVisionMatrix())
+                // Apply dog vision filter using scientific color matrix
+                applyColorMatrixOverlay(VisionColorFilter.getDogVisionMatrix())
                 Log.d(TAG, "Dog filter applied - scientific color matrix")
                 Toast.makeText(this, "🐕 Dog Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.CAT -> {
-                // Apply cat vision filter using color matrix overlay
-                applyColorMatrixFilter(VisionColorFilter.getCatVisionMatrix())
-                // Apply cat vision filter using color matrix overlay
-                applyColorMatrixFilter(VisionColorFilter.getCatVisionMatrix())
+                // Apply cat vision filter using scientific color matrix
+                applyColorMatrixOverlay(VisionColorFilter.getCatVisionMatrix())
                 Log.d(TAG, "Cat filter applied - scientific color matrix")
                 Toast.makeText(this, "🐱 Cat Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.BIRD -> {
-                // Apply bird vision filter using color matrix overlay
-                applyColorMatrixFilter(VisionColorFilter.getBirdVisionMatrix())
-                // Apply bird vision filter using color matrix overlay
-                applyColorMatrixFilter(VisionColorFilter.getBirdVisionMatrix())
+                // Apply bird vision filter using scientific color matrix
+                applyColorMatrixOverlay(VisionColorFilter.getBirdVisionMatrix())
                 Log.d(TAG, "Bird filter applied - scientific color matrix")
                 Toast.makeText(this, "🦅 Bird Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.ORIGINAL -> {
-                // Remove filter from PreviewView
-                previewView.colorFilter = null
-                Log.d(TAG, "Original filter applied - no color matrix")
+                // Remove filter overlay
+                filterOverlay.visibility = View.GONE
+                Log.d(TAG, "Original filter applied - no overlay")
                 Toast.makeText(this, "👁️ Human Vision", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    private fun applyColorMatrixFilter(colorMatrix: ColorMatrix) {
-        // Create a color filter from the matrix
+    private fun applyColorMatrixOverlay(colorMatrix: ColorMatrix) {
+        // Create a color filter from the scientific matrix
         val colorFilter = ColorMatrixColorFilter(colorMatrix)
         
-        // Apply the filter directly to the PreviewView to affect the camera preview
-        previewView.colorFilter = colorFilter
+        // Create a drawable with the color filter
+        val drawable = android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)
+        drawable.colorFilter = colorFilter
         
-        // Hide the overlay since we're applying filter directly to preview
-        filterOverlay.visibility = View.GONE
+        // Apply the filtered drawable to the overlay
+        filterOverlay.background = drawable
+        filterOverlay.alpha = 0.4f // Make it semi-transparent so it affects the view underneath
+        filterOverlay.visibility = View.VISIBLE
     }
 
     private fun updateActiveFilterTextView() {
