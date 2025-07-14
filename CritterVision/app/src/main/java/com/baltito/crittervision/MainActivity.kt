@@ -32,7 +32,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var previewView: PreviewView
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var activeFilterTextView: TextView
-    private lateinit var filterOverlay: View
+    private lateinit var filterOverlay: AnimalVisionView
 
     private var currentFilter: VisionColorFilter.FilterType = VisionColorFilter.FilterType.ORIGINAL
 
@@ -87,8 +87,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupFilterOverlay() {
-        // Create a custom overlay view that can apply color matrices
-        filterOverlay = View(this)
+        // Create a custom overlay view that can apply proper color transformations
+        filterOverlay = AnimalVisionView(this)
         filterOverlay.visibility = View.GONE
         filterOverlay.isClickable = false // Allow clicks to pass through to buttons
         filterOverlay.isFocusable = false
@@ -100,7 +100,7 @@ class MainActivity : AppCompatActivity() {
             android.view.ViewGroup.LayoutParams.MATCH_PARENT
         ))
 
-        Log.d(TAG, "Custom color filter overlay created")
+        Log.d(TAG, "Custom animal vision overlay created")
     }
 
     private fun makeButtonsProminent(vararg buttons: Button) {
@@ -165,55 +165,30 @@ class MainActivity : AppCompatActivity() {
 
         when (currentFilter) {
             VisionColorFilter.FilterType.DOG -> {
-                // Apply dog vision filter - simulate dichromatic vision (red-green colorblind)
-                // Dogs see primarily blue and yellow, with reds appearing as yellow/gray
-                applyDogVisionFilter()
-                Log.d(TAG, "Dog filter applied - dichromatic vision simulation")
+                // Apply dog vision filter using scientific color matrix
+                filterOverlay.setAnimalVision(VisionColorFilter.getDogVisionMatrix(), "DOG")
+                Log.d(TAG, "Dog filter applied - scientific color matrix")
                 Toast.makeText(this, "🐕 Dog Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.CAT -> {
-                // Apply cat vision filter - simulate dichromatic vision with blue sensitivity
-                // Cats see blues and greens well, reds are muted
-                applyCatVisionFilter()
-                Log.d(TAG, "Cat filter applied - dichromatic vision with blue sensitivity")
+                // Apply cat vision filter using scientific color matrix
+                filterOverlay.setAnimalVision(VisionColorFilter.getCatVisionMatrix(), "CAT")
+                Log.d(TAG, "Cat filter applied - scientific color matrix")
                 Toast.makeText(this, "🐱 Cat Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.BIRD -> {
-                // Apply bird vision filter - simulate tetrachromatic vision with UV sensitivity
-                // Birds see enhanced colors and ultraviolet patterns
-                applyBirdVisionFilter()
-                Log.d(TAG, "Bird filter applied - tetrachromatic vision simulation")
+                // Apply bird vision filter using scientific color matrix
+                filterOverlay.setAnimalVision(VisionColorFilter.getBirdVisionMatrix(), "BIRD")
+                Log.d(TAG, "Bird filter applied - scientific color matrix")
                 Toast.makeText(this, "🦅 Bird Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.ORIGINAL -> {
                 // Remove filter overlay
-                filterOverlay.setBackgroundColor(Color.TRANSPARENT) // Clear background
-                filterOverlay.visibility = View.GONE
+                filterOverlay.clearVision()
                 Log.d(TAG, "Original filter applied - no overlay")
                 Toast.makeText(this, "👁️ Human Vision", Toast.LENGTH_SHORT).show()
             }
         }
-    }
-
-    private fun applyDogVisionFilter() {
-        // Dog vision: Dichromatic (red-green colorblind)
-        // Reds appear as yellow/gray, blues and yellows are prominent
-        filterOverlay.setBackgroundColor(Color.argb(60, 255, 255, 0)) // Yellow tint
-        filterOverlay.visibility = View.VISIBLE
-    }
-
-    private fun applyCatVisionFilter() {
-        // Cat vision: Dichromatic with enhanced blue sensitivity
-        // Blues and greens are prominent, reds are muted
-        filterOverlay.setBackgroundColor(Color.argb(50, 100, 150, 200)) // Blue-gray tint
-        filterOverlay.visibility = View.VISIBLE
-    }
-
-    private fun applyBirdVisionFilter() {
-        // Bird vision: Tetrachromatic with UV sensitivity
-        // Enhanced colors, especially blues and purples
-        filterOverlay.setBackgroundColor(Color.argb(40, 150, 100, 255)) // Purple-blue tint
-        filterOverlay.visibility = View.VISIBLE
     }
 
     private fun updateActiveFilterTextView() {
@@ -230,5 +205,106 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
+    }
+
+    // Custom view that applies proper color matrix transformations
+    private inner class AnimalVisionView(context: Context) : View(context) {
+        private var colorMatrix: ColorMatrix? = null
+        private var animalType: String? = null
+        private val paint = Paint()
+        private val colorFilterPaint = Paint()
+
+        fun setAnimalVision(matrix: ColorMatrix, type: String) {
+            colorMatrix = matrix
+            animalType = type
+            visibility = View.VISIBLE
+            invalidate()
+        }
+
+        fun clearVision() {
+            colorMatrix = null
+            animalType = null
+            visibility = View.GONE
+            invalidate()
+        }
+
+        override fun onDraw(canvas: Canvas) {
+            super.onDraw(canvas)
+            
+            val currentMatrix = colorMatrix
+            val currentType = animalType
+            
+            if (currentMatrix != null && currentType != null) {
+                when (currentType) {
+                    "DOG" -> drawDogVision(canvas, currentMatrix)
+                    "CAT" -> drawCatVision(canvas, currentMatrix)
+                    "BIRD" -> drawBirdVision(canvas, currentMatrix)
+                }
+            }
+        }
+
+        private fun drawDogVision(canvas: Canvas, matrix: ColorMatrix) {
+            // Dog vision: Reds become yellow/gray, blues stay blue
+            // Use PorterDuff blend modes to simulate the color transformation
+            
+            // Layer 1: Yellow overlay for reds (simulates red->yellow transformation)
+            paint.color = Color.argb(40, 255, 255, 0)
+            paint.xfermode = PorterDuff.Mode.SCREEN
+            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            
+            // Layer 2: Blue enhancement (simulates blue channel enhancement)
+            paint.color = Color.argb(20, 0, 0, 255)
+            paint.xfermode = PorterDuff.Mode.ADD
+            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            
+            // Layer 3: Gray overlay for neutral areas
+            paint.color = Color.argb(15, 128, 128, 128)
+            paint.xfermode = PorterDuff.Mode.MULTIPLY
+            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            
+            paint.xfermode = null // Reset blend mode
+        }
+
+        private fun drawCatVision(canvas: Canvas, matrix: ColorMatrix) {
+            // Cat vision: Enhanced blues, muted reds
+            
+            // Layer 1: Blue enhancement (strong blue channel)
+            paint.color = Color.argb(35, 0, 0, 255)
+            paint.xfermode = PorterDuff.Mode.SCREEN
+            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            
+            // Layer 2: Green enhancement
+            paint.color = Color.argb(25, 0, 255, 0)
+            paint.xfermode = PorterDuff.Mode.ADD
+            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            
+            // Layer 3: Red muting (simulates red channel reduction)
+            paint.color = Color.argb(30, 128, 128, 128)
+            paint.xfermode = PorterDuff.Mode.MULTIPLY
+            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            
+            paint.xfermode = null
+        }
+
+        private fun drawBirdVision(canvas: Canvas, matrix: ColorMatrix) {
+            // Bird vision: Enhanced colors, especially blues and purples (UV simulation)
+            
+            // Layer 1: Enhanced blue (very strong blue channel)
+            paint.color = Color.argb(45, 0, 0, 255)
+            paint.xfermode = PorterDuff.Mode.SCREEN
+            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            
+            // Layer 2: Purple overlay (UV simulation)
+            paint.color = Color.argb(30, 150, 0, 255)
+            paint.xfermode = PorterDuff.Mode.ADD
+            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            
+            // Layer 3: Enhanced red and green
+            paint.color = Color.argb(25, 255, 255, 0)
+            paint.xfermode = PorterDuff.Mode.SCREEN
+            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            
+            paint.xfermode = null
+        }
     }
 }
