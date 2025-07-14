@@ -1,14 +1,9 @@
 package com.baltito.crittervision
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.Color
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
-import android.graphics.PorterDuff
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
-import android.graphics.PorterDuff
+import android.graphics.*
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -37,8 +32,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var previewView: PreviewView
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var activeFilterTextView: TextView
-    private lateinit var filterOverlay: View
-    private lateinit var filterOverlay: View
+    private lateinit var filterOverlay: ColorFilterView
 
     private var currentFilter: VisionColorFilter.FilterType = VisionColorFilter.FilterType.ORIGINAL
 
@@ -50,9 +44,7 @@ class MainActivity : AppCompatActivity() {
         activeFilterTextView = findViewById(R.id.activeFilterTextView)
         cameraExecutor = Executors.newSingleThreadExecutor()
 
-        // Create overlay for applying color filters
-        setupFilterOverlay()
-        // Create overlay for applying color filters
+        // Create custom overlay for applying color filters
         setupFilterOverlay()
 
         // Setup buttons
@@ -95,9 +87,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupFilterOverlay() {
-        // Create a full-screen overlay for applying color filters
-        filterOverlay = View(this)
-        filterOverlay.setBackgroundColor(Color.TRANSPARENT)
+        // Create a custom overlay view that can apply color matrices
+        filterOverlay = ColorFilterView(this)
         filterOverlay.visibility = View.GONE
         filterOverlay.isClickable = false // Allow clicks to pass through to buttons
         filterOverlay.isFocusable = false
@@ -109,25 +100,7 @@ class MainActivity : AppCompatActivity() {
             android.view.ViewGroup.LayoutParams.MATCH_PARENT
         ))
 
-        Log.d(TAG, "Filter overlay created")
-    }
-
-    private fun setupFilterOverlay() {
-        // Create a full-screen overlay for applying color filters
-        filterOverlay = View(this)
-        filterOverlay.setBackgroundColor(Color.TRANSPARENT)
-        filterOverlay.visibility = View.GONE
-        filterOverlay.isClickable = false // Allow clicks to pass through to buttons
-        filterOverlay.isFocusable = false
-
-        // Add to the root content view
-        val rootView = findViewById<android.view.ViewGroup>(android.R.id.content)
-        rootView.addView(filterOverlay, android.view.ViewGroup.LayoutParams(
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT
-        ))
-
-        Log.d(TAG, "Filter overlay created")
+        Log.d(TAG, "Custom color filter overlay created")
     }
 
     private fun makeButtonsProminent(vararg buttons: Button) {
@@ -179,7 +152,6 @@ class MainActivity : AppCompatActivity() {
                 cameraProvider.bindToLifecycle(this, cameraSelector, preview)
 
                 Log.d(TAG, "Camera started successfully")
-                Log.d(TAG, "Camera started successfully")
 
             } catch (e: Exception) {
                 Log.e(TAG, "Use case binding failed", e)
@@ -193,47 +165,30 @@ class MainActivity : AppCompatActivity() {
 
         when (currentFilter) {
             VisionColorFilter.FilterType.DOG -> {
-                // Apply dog vision filter using color matrix overlay
-                applyColorMatrixFilter(VisionColorFilter.getDogVisionMatrix())
-                // Apply dog vision filter using color matrix overlay
-                applyColorMatrixFilter(VisionColorFilter.getDogVisionMatrix())
+                // Apply dog vision filter using scientific color matrix
+                filterOverlay.setColorMatrix(VisionColorFilter.getDogVisionMatrix())
                 Log.d(TAG, "Dog filter applied - scientific color matrix")
                 Toast.makeText(this, "🐕 Dog Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.CAT -> {
-                // Apply cat vision filter using color matrix overlay
-                applyColorMatrixFilter(VisionColorFilter.getCatVisionMatrix())
-                // Apply cat vision filter using color matrix overlay
-                applyColorMatrixFilter(VisionColorFilter.getCatVisionMatrix())
+                // Apply cat vision filter using scientific color matrix
+                filterOverlay.setColorMatrix(VisionColorFilter.getCatVisionMatrix())
                 Log.d(TAG, "Cat filter applied - scientific color matrix")
                 Toast.makeText(this, "🐱 Cat Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.BIRD -> {
-                // Apply bird vision filter using color matrix overlay
-                applyColorMatrixFilter(VisionColorFilter.getBirdVisionMatrix())
-                // Apply bird vision filter using color matrix overlay
-                applyColorMatrixFilter(VisionColorFilter.getBirdVisionMatrix())
+                // Apply bird vision filter using scientific color matrix
+                filterOverlay.setColorMatrix(VisionColorFilter.getBirdVisionMatrix())
                 Log.d(TAG, "Bird filter applied - scientific color matrix")
                 Toast.makeText(this, "🦅 Bird Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.ORIGINAL -> {
-                // Remove filter from PreviewView
-                previewView.colorFilter = null
-                Log.d(TAG, "Original filter applied - no color matrix")
+                // Remove filter overlay
+                filterOverlay.clearColorMatrix()
+                Log.d(TAG, "Original filter applied - no overlay")
                 Toast.makeText(this, "👁️ Human Vision", Toast.LENGTH_SHORT).show()
             }
         }
-    }
-
-    private fun applyColorMatrixFilter(colorMatrix: ColorMatrix) {
-        // Create a color filter from the matrix
-        val colorFilter = ColorMatrixColorFilter(colorMatrix)
-        
-        // Apply the filter directly to the PreviewView to affect the camera preview
-        previewView.colorFilter = colorFilter
-        
-        // Hide the overlay since we're applying filter directly to preview
-        filterOverlay.visibility = View.GONE
     }
 
     private fun updateActiveFilterTextView() {
@@ -250,5 +205,36 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
+    }
+
+    // Custom view that applies color matrices to simulate animal vision
+    private inner class ColorFilterView(context: Context) : View(context) {
+        private var colorMatrix: ColorMatrix? = null
+        private val paint = Paint()
+
+        fun setColorMatrix(matrix: ColorMatrix) {
+            colorMatrix = matrix
+            visibility = View.VISIBLE
+            invalidate()
+        }
+
+        fun clearColorMatrix() {
+            colorMatrix = null
+            visibility = View.GONE
+            invalidate()
+        }
+
+        override fun onDraw(canvas: Canvas) {
+            super.onDraw(canvas)
+            
+            if (colorMatrix != null) {
+                // Apply the color matrix to the entire view
+                paint.colorFilter = ColorMatrixColorFilter(colorMatrix)
+                paint.alpha = 80 // Semi-transparent
+                
+                // Draw a rectangle that covers the entire view with the color filter
+                canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            }
+        }
     }
 }
