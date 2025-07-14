@@ -227,9 +227,10 @@ class MainActivity : AppCompatActivity() {
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
             
-            if (colorMatrix != null) {
+            val currentMatrix = colorMatrix
+            if (currentMatrix != null) {
                 // Apply the color matrix to the entire view
-                paint.colorFilter = ColorMatrixColorFilter(colorMatrix)
+                paint.colorFilter = ColorMatrixColorFilter(currentMatrix)
                 paint.alpha = 80 // Semi-transparent
                 
                 // Draw a rectangle that covers the entire view with the color filter
