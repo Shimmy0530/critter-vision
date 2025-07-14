@@ -29,9 +29,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private lateinit var previewView: PreviewView
-    private lateinit var filterOverlay: View
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var activeFilterTextView: TextView
+    private lateinit var colorFilterProcessor: ColorFilterSurfaceProcessor
 
     private var currentFilter: VisionColorFilter.FilterType = VisionColorFilter.FilterType.ORIGINAL
 
@@ -43,8 +43,8 @@ class MainActivity : AppCompatActivity() {
         activeFilterTextView = findViewById(R.id.activeFilterTextView)
         cameraExecutor = Executors.newSingleThreadExecutor()
 
-        // Create overlay immediately
-        setupFilterOverlay()
+        // Initialize the color filter processor
+        colorFilterProcessor = ColorFilterSurfaceProcessor(cameraExecutor)
 
         // Setup buttons
         val dogVisionButton: Button = findViewById(R.id.dogVisionButton)
@@ -83,24 +83,6 @@ class MainActivity : AppCompatActivity() {
         } else {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
         }
-    }
-
-    private fun setupFilterOverlay() {
-        // Create a simple full-screen overlay
-        filterOverlay = View(this)
-        filterOverlay.setBackgroundColor(Color.TRANSPARENT)
-        filterOverlay.visibility = View.GONE
-        filterOverlay.isClickable = false // Allow clicks to pass through to buttons
-        filterOverlay.isFocusable = false
-
-        // Add to the root content view
-        val rootView = findViewById<android.view.ViewGroup>(android.R.id.content)
-        rootView.addView(filterOverlay, android.view.ViewGroup.LayoutParams(
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT
-        ))
-
-        Log.d(TAG, "Full-screen filter overlay created")
     }
 
     private fun makeButtonsProminent(vararg buttons: Button) {
@@ -144,13 +126,18 @@ class MainActivity : AppCompatActivity() {
                 val preview = Preview.Builder()
                     .build()
 
+                // Set up the preview with the color filter processor
                 preview.setSurfaceProvider(previewView.surfaceProvider)
+                
+                // Connect the color filter processor to the preview
+                preview.setSurfaceProcessor(colorFilterProcessor)
+                
                 val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
                 cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(this, cameraSelector, preview)
 
-                Log.d(TAG, "Camera started successfully")
+                Log.d(TAG, "Camera started successfully with color filter processor")
 
             } catch (e: Exception) {
                 Log.e(TAG, "Use case binding failed", e)
@@ -162,32 +149,27 @@ class MainActivity : AppCompatActivity() {
     private fun updatePreviewFilter() {
         Log.d(TAG, "Applying filter: $currentFilter")
 
+        // Get the appropriate color matrix for the selected filter
+        val colorMatrix = VisionColorFilter.getMatrix(currentFilter)
+        
+        // Apply the filter to the processor
+        colorFilterProcessor.setFilter(colorMatrix)
+
         when (currentFilter) {
             VisionColorFilter.FilterType.DOG -> {
-                // Dog vision: Strong yellow overlay
-                filterOverlay.setBackgroundColor(Color.argb(150, 255, 255, 0)) // Stronger yellow
-                filterOverlay.visibility = View.VISIBLE
-                Log.d(TAG, "Dog filter applied - STRONG yellow overlay visible")
+                Log.d(TAG, "Dog filter applied - scientific color matrix")
                 Toast.makeText(this, "🐕 Dog Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.CAT -> {
-                // Cat vision: Strong blue-gray overlay
-                filterOverlay.setBackgroundColor(Color.argb(130, 100, 150, 200)) // Stronger blue-gray
-                filterOverlay.visibility = View.VISIBLE
-                Log.d(TAG, "Cat filter applied - STRONG blue-gray overlay visible")
+                Log.d(TAG, "Cat filter applied - scientific color matrix")
                 Toast.makeText(this, "🐱 Cat Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.BIRD -> {
-                // Bird vision: Strong purple overlay
-                filterOverlay.setBackgroundColor(Color.argb(110, 200, 100, 255)) // Stronger purple
-                filterOverlay.visibility = View.VISIBLE
-                Log.d(TAG, "Bird filter applied - STRONG purple overlay visible")
+                Log.d(TAG, "Bird filter applied - scientific color matrix")
                 Toast.makeText(this, "🦅 Bird Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.ORIGINAL -> {
-                // Original vision: No overlay
-                filterOverlay.visibility = View.GONE
-                Log.d(TAG, "Original filter applied - overlay HIDDEN")
+                Log.d(TAG, "Original filter applied - no color matrix")
                 Toast.makeText(this, "👁️ Human Vision", Toast.LENGTH_SHORT).show()
             }
         }
@@ -206,6 +188,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        colorFilterProcessor.release()
         cameraExecutor.shutdown()
     }
 }

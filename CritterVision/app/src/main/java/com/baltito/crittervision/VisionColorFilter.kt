@@ -18,12 +18,12 @@ object VisionColorFilter {
      * Based on Neitz et al. (1989) research showing dogs have protanopia-like vision
      */
     fun getDogVisionMatrix(): ColorMatrix {
-        // More accurate dichromatic simulation based on 429nm and 555nm peaks
+        // Updated matrix based on user specifications for more realistic dog vision
         val dogMatrix = floatArrayOf(
-            0.625f, 0.375f, 0.0f,     0.0f, 0.0f,  // R: Blue+Green mixed, no pure red
-            0.70f,  0.30f,  0.0f,     0.0f, 0.0f,  // G: Shifted toward yellow-green
-            0.0f,   0.30f,  0.70f,    0.0f, 0.0f,  // B: Strong blue response
-            0.0f,   0.0f,   0.0f,     1.0f, 0.0f   // A: Alpha unchanged
+            0.625f, 0.375f, 0.0f,     0.0f, 0.0f,  // Red channel
+            0.7f,   0.3f,   0.0f,     0.0f, 0.0f,  // Green channel
+            0.0f,   0.3f,   0.7f,     0.0f, 0.0f,  // Blue channel
+            0.0f,   0.0f,   0.0f,     1.0f, 0.0f   // Alpha channel
         )
         return ColorMatrix(dogMatrix)
     }
@@ -34,20 +34,14 @@ object VisionColorFilter {
      * Note: Some evidence suggests limited trichromatic ability
      */
     fun getCatVisionMatrix(): ColorMatrix {
-        // Dichromatic vision similar to deuteranope (green-red color blind)
-        val catMatrixValues = floatArrayOf(
-            0.40f,   0.60f,  -0.20f,  0.0f, 0.0f,  // R: Shifted perception
-            0.30f,   0.70f,   0.0f,   0.0f, 0.0f,  // G: Strong green response
-            -0.05f,  0.15f,   0.90f,  0.0f, 0.0f,  // B: Blue-dominant
-            0.0f,    0.0f,    0.0f,   1.0f, 0.0f   // A: Alpha unchanged
+        // Updated matrix based on user specifications for more realistic cat vision
+        val catMatrix = floatArrayOf(
+            0.567f, 0.433f, 0.0f,     0.0f, 0.0f,  // Red channel
+            0.558f, 0.442f, 0.0f,     0.0f, 0.0f,  // Green channel
+            0.0f,   0.242f, 0.758f,   0.0f, 0.0f,  // Blue channel
+            0.0f,   0.0f,   0.0f,     1.0f, 0.0f   // Alpha channel
         )
-        val cm = ColorMatrix(catMatrixValues)
-
-        // Cats have excellent low-light vision - slight brightness enhancement
-        val brightnessMatrix = ColorMatrix()
-        brightnessMatrix.setScale(1.15f, 1.15f, 1.15f, 1.0f)
-        cm.postConcat(brightnessMatrix)
-        return cm
+        return ColorMatrix(catMatrix)
     }
 
     /**
@@ -56,22 +50,14 @@ object VisionColorFilter {
      * Birds see dramatically enhanced colors and ultraviolet patterns
      */
     fun getBirdVisionMatrix(): ColorMatrix {
-        // Enhanced tetrachromatic vision simulation
-        // Increased saturation to represent richer color perception
-        val saturationMatrix = ColorMatrix()
-        saturationMatrix.setSaturation(2.2f) // Higher than original for tetrachromatic richness
-
-        // UV perception simulation - adds purple/violet shift to represent UV detection
-        val uvEnhancementMatrix = ColorMatrix(floatArrayOf(
-            1.1f,  0.0f,  0.15f, 0.0f, 10.0f,  // R: Enhanced red + UV contribution
-            0.05f, 1.2f,  0.10f, 0.0f, 5.0f,   // G: Enhanced green + UV
-            0.15f, 0.15f, 1.3f,  0.0f, 15.0f,  // B: Strong blue + UV (violet)
-            0.0f,  0.0f,  0.0f,  1.0f, 0.0f    // A: Alpha unchanged
-        ))
-
-        // Combine saturation boost with UV enhancement
-        saturationMatrix.postConcat(uvEnhancementMatrix)
-        return saturationMatrix
+        // Updated matrix based on user specifications for more realistic bird vision
+        val birdMatrix = floatArrayOf(
+            0.8f,   0.2f,   0.0f,     0.0f, 0.0f,  // Red channel
+            0.1f,   0.8f,   0.1f,     0.0f, 0.0f,  // Green channel
+            0.2f,   0.1f,   0.9f,     0.0f, 0.0f,  // Blue channel
+            0.0f,   0.0f,   0.0f,     1.0f, 0.0f   // Alpha channel
+        )
+        return ColorMatrix(birdMatrix)
     }
 
     // Keep existing ColorMatrixColorFilter methods for backward compatibility
