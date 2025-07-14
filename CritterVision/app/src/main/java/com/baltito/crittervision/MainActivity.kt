@@ -249,17 +249,17 @@ class MainActivity : AppCompatActivity() {
             
             // Layer 1: Yellow overlay for reds (simulates red->yellow transformation)
             paint.color = Color.argb(40, 255, 255, 0)
-            paint.xfermode = PorterDuff.Mode.SCREEN
+            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
             
             // Layer 2: Blue enhancement (simulates blue channel enhancement)
             paint.color = Color.argb(20, 0, 0, 255)
-            paint.xfermode = PorterDuff.Mode.ADD
+            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.ADD)
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
             
             // Layer 3: Gray overlay for neutral areas
             paint.color = Color.argb(15, 128, 128, 128)
-            paint.xfermode = PorterDuff.Mode.MULTIPLY
+            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.MULTIPLY)
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
             
             paint.xfermode = null // Reset blend mode
@@ -270,17 +270,17 @@ class MainActivity : AppCompatActivity() {
             
             // Layer 1: Blue enhancement (strong blue channel)
             paint.color = Color.argb(35, 0, 0, 255)
-            paint.xfermode = PorterDuff.Mode.SCREEN
+            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
             
             // Layer 2: Green enhancement
             paint.color = Color.argb(25, 0, 255, 0)
-            paint.xfermode = PorterDuff.Mode.ADD
+            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.ADD)
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
             
             // Layer 3: Red muting (simulates red channel reduction)
             paint.color = Color.argb(30, 128, 128, 128)
-            paint.xfermode = PorterDuff.Mode.MULTIPLY
+            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.MULTIPLY)
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
             
             paint.xfermode = null
@@ -291,17 +291,17 @@ class MainActivity : AppCompatActivity() {
             
             // Layer 1: Enhanced blue (very strong blue channel)
             paint.color = Color.argb(45, 0, 0, 255)
-            paint.xfermode = PorterDuff.Mode.SCREEN
+            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
             
             // Layer 2: Purple overlay (UV simulation)
             paint.color = Color.argb(30, 150, 0, 255)
-            paint.xfermode = PorterDuff.Mode.ADD
+            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.ADD)
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
             
             // Layer 3: Enhanced red and green
             paint.color = Color.argb(25, 255, 255, 0)
-            paint.xfermode = PorterDuff.Mode.SCREEN
+            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
             
             paint.xfermode = null
