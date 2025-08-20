@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.*
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -11,10 +12,14 @@ import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.Preview
+import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import android.widget.ImageView
+import java.io.ByteArrayOutputStream
+import java.util.concurrent.TimeUnit
+import java.util.Timer
+import java.util.TimerTask
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.common.util.concurrent.ListenableFuture
@@ -30,9 +35,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private lateinit var previewView: PreviewView
+    private lateinit var processedImageView: ImageView
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var activeFilterTextView: TextView
-    private lateinit var colorFilterOverlay: ColorMatrixOverlay
+    private var imageCapture: ImageCapture? = null
 
     private var currentFilter: VisionColorFilter.FilterType = VisionColorFilter.FilterType.ORIGINAL
 
@@ -41,11 +47,9 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         previewView = findViewById(R.id.previewView)
+        processedImageView = findViewById(R.id.processedImageView)
         activeFilterTextView = findViewById(R.id.activeFilterTextView)
         cameraExecutor = Executors.newSingleThreadExecutor()
-        
-        // Create and add the color matrix overlay
-        setupColorMatrixOverlay()
 
         // Setup buttons
         val dogVisionButton: Button = findViewById(R.id.dogVisionButton)
@@ -133,16 +137,24 @@ class MainActivity : AppCompatActivity() {
             try {
                 val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
 
+                // Preview use case
                 val preview = Preview.Builder()
                     .build()
+                    .also {
+                        it.setSurfaceProvider(previewView.surfaceProvider)
+                    }
 
-                // Use standard preview setup first to ensure camera works
-                preview.setSurfaceProvider(previewView.surfaceProvider)
+                // ImageCapture use case for capturing frames
+                imageCapture = ImageCapture.Builder()
+                    .build()
                 
                 val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
                 cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(this, cameraSelector, preview)
+                cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture)
+
+                // Start continuous frame capture for color matrix processing
+                startFrameCapture()
 
                 Log.d(TAG, "Camera started successfully")
 
@@ -151,6 +163,44 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(applicationContext, "Error starting camera: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }, ContextCompat.getMainExecutor(this))
+    }
+
+    private fun startFrameCapture() {
+        // Capture frames continuously for processing
+        val captureTimer = java.util.Timer()
+        captureTimer.scheduleAtFixedRate(object : java.util.TimerTask() {
+            override fun run() {
+                captureAndProcessFrame()
+            }
+        }, 0, 100) // Capture every 100ms for smooth video-like effect
+    }
+
+    private fun captureAndProcessFrame() {
+        val imageCapture = imageCapture ?: return
+
+        val outputStream = ByteArrayOutputStream()
+        val outputFileOptions = ImageCapture.OutputFileOptions.Builder(outputStream).build()
+
+        imageCapture.takePicture(
+            outputFileOptions,
+            ContextCompat.getMainExecutor(this),
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onError(exception: ImageCaptureException) {
+                    Log.e(TAG, "Photo capture failed: ${exception.message}", exception)
+                }
+
+                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                    val imageBytes = outputStream.toByteArray()
+                    val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                    
+                    // Apply color matrix to the bitmap and display in ImageView
+                    runOnUiThread {
+                        processedImageView.setImageBitmap(bitmap)
+                        applyColorMatrixToImageView()
+                    }
+                }
+            }
+        )
     }
 
     private fun updatePreviewFilter() {
@@ -190,25 +240,31 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyColorMatrixToPreview(colorMatrix: ColorMatrix?) {
-        // Apply the color matrix to the overlay that will actually transform colors
-        colorFilterOverlay.setColorMatrix(colorMatrix)
-        Log.d(TAG, "Color matrix applied to overlay: ${colorMatrix != null}")
+        // This method now just triggers the ImageView update
+        applyColorMatrixToImageView()
+        Log.d(TAG, "Color matrix set for next frame: ${colorMatrix != null}")
     }
 
-    private fun setupColorMatrixOverlay() {
-        colorFilterOverlay = ColorMatrixOverlay(this)
-        colorFilterOverlay.visibility = View.GONE
-        colorFilterOverlay.isClickable = false
-        colorFilterOverlay.isFocusable = false
+    private fun applyColorMatrixToImageView() {
+        // Apply color matrix directly to the ImageView - the proper way!
+        val colorMatrix = when (currentFilter) {
+            VisionColorFilter.FilterType.DOG -> VisionColorFilter.getDogVisionMatrix()
+            VisionColorFilter.FilterType.CAT -> VisionColorFilter.getCatVisionMatrix()
+            VisionColorFilter.FilterType.BIRD -> VisionColorFilter.getBirdVisionMatrix()
+            VisionColorFilter.FilterType.RED_ONLY_TEST -> VisionColorFilter.getRedOnlyTestMatrix()
+            VisionColorFilter.FilterType.ORIGINAL -> null
+        }
 
-        // Add to the root content view
-        val rootView = findViewById<android.view.ViewGroup>(android.R.id.content)
-        rootView.addView(colorFilterOverlay, android.view.ViewGroup.LayoutParams(
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT
-        ))
-
-        Log.d(TAG, "Color matrix overlay created")
+        if (colorMatrix != null) {
+            // Use the official Android API approach from your research
+            val filter = ColorMatrixColorFilter(colorMatrix)
+            processedImageView.colorFilter = filter
+            Log.d(TAG, "Applied ColorMatrixColorFilter to ImageView")
+        } else {
+            // Remove color filter for original vision
+            processedImageView.colorFilter = null
+            Log.d(TAG, "Removed ColorMatrixColorFilter from ImageView")
+        }
     }
 
 
@@ -230,99 +286,5 @@ class MainActivity : AppCompatActivity() {
         cameraExecutor.shutdown()
     }
 
-    // Custom overlay that applies color matrices using Canvas transformations
-    private inner class ColorMatrixOverlay(context: Context) : View(context) {
-        private var colorMatrix: ColorMatrix? = null
-        private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-        fun setColorMatrix(matrix: ColorMatrix?) {
-            colorMatrix = matrix
-            visibility = if (matrix != null) View.VISIBLE else View.GONE
-            invalidate()
-        }
-
-        override fun onDraw(canvas: Canvas) {
-            super.onDraw(canvas)
-            
-            if (colorMatrix != null) {
-                // Get the bounds of the preview view to only apply filter to camera area
-                val previewBounds = getPreviewBounds()
-                if (previewBounds != null) {
-                    // Apply the exact color matrix transformation
-                    applyExactColorMatrix(canvas, previewBounds)
-                }
-            }
-        }
-
-        private fun getPreviewBounds(): RectF? {
-            // Calculate the relative position of the preview view
-            val previewLocation = IntArray(2)
-            previewView.getLocationInWindow(previewLocation)
-            
-            val overlayLocation = IntArray(2)
-            this.getLocationInWindow(overlayLocation)
-            
-            val left = (previewLocation[0] - overlayLocation[0]).toFloat()
-            val top = (previewLocation[1] - overlayLocation[1]).toFloat()
-            val right = left + previewView.width.toFloat()
-            val bottom = top + previewView.height.toFloat()
-            
-            return if (previewView.width > 0 && previewView.height > 0) {
-                RectF(left, top, right, bottom)
-            } else null
-        }
-
-        private fun applyExactColorMatrix(canvas: Canvas, bounds: RectF) {
-            // Save the canvas state
-            canvas.save()
-            
-            // Clip to preview bounds so we don't affect UI elements
-            canvas.clipRect(bounds)
-            
-            // Apply the color matrix as a ColorFilter to simulate the effect
-            val colorFilter = ColorMatrixColorFilter(colorMatrix!!)
-            paint.colorFilter = colorFilter
-            
-            // Draw a semi-transparent rectangle to simulate color transformation
-            // This is a visible approximation of the color matrix effect
-            when (currentFilter) {
-                VisionColorFilter.FilterType.RED_ONLY_TEST -> {
-                    // RED ONLY: Make it very obvious - strong red tint to show it's working
-                    paint.color = Color.argb(100, 255, 0, 0)
-                    paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.MULTIPLY)
-                    canvas.drawRect(bounds, paint)
-                }
-                VisionColorFilter.FilterType.DOG -> {
-                    // Dog vision: Yellow-brown tint (protanopia simulation)
-                    paint.color = Color.argb(80, 255, 200, 100)
-                    paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.OVERLAY)
-                    canvas.drawRect(bounds, paint)
-                }
-                VisionColorFilter.FilterType.CAT -> {
-                    // Cat vision: Blue-cyan enhancement
-                    paint.color = Color.argb(60, 100, 200, 255)
-                    paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
-                    canvas.drawRect(bounds, paint)
-                }
-                VisionColorFilter.FilterType.BIRD -> {
-                    // Bird vision: Enhanced saturation
-                    paint.color = Color.argb(40, 255, 150, 255)
-                    paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.OVERLAY)
-                    canvas.drawRect(bounds, paint)
-                }
-                else -> {
-                    // Fallback: Apply a general color transformation
-                    paint.color = Color.argb(50, 255, 255, 255)
-                    paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.OVERLAY)
-                    canvas.drawRect(bounds, paint)
-                }
-            }
-            
-            paint.xfermode = null
-            paint.colorFilter = null
-            
-            // Restore the canvas state
-            canvas.restore()
-        }
-    }
 }
