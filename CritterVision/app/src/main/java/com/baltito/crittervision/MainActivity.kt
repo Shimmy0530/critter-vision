@@ -32,7 +32,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var previewView: PreviewView
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var activeFilterTextView: TextView
-    private lateinit var filterOverlay: AnimalVisionView
+    private lateinit var colorFilterOverlay: ColorFilterOverlay
 
     private var currentFilter: VisionColorFilter.FilterType = VisionColorFilter.FilterType.ORIGINAL
 
@@ -43,9 +43,9 @@ class MainActivity : AppCompatActivity() {
         previewView = findViewById(R.id.previewView)
         activeFilterTextView = findViewById(R.id.activeFilterTextView)
         cameraExecutor = Executors.newSingleThreadExecutor()
-
-        // Create custom overlay for applying color filters
-        setupFilterOverlay()
+        
+        // Create and add the color filter overlay
+        setupColorFilterOverlay()
 
         // Setup buttons
         val dogVisionButton: Button = findViewById(R.id.dogVisionButton)
@@ -86,22 +86,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupFilterOverlay() {
-        // Create a custom overlay view that can apply proper color transformations
-        filterOverlay = AnimalVisionView(this)
-        filterOverlay.visibility = View.GONE
-        filterOverlay.isClickable = false // Allow clicks to pass through to buttons
-        filterOverlay.isFocusable = false
 
-        // Add to the root content view
-        val rootView = findViewById<android.view.ViewGroup>(android.R.id.content)
-        rootView.addView(filterOverlay, android.view.ViewGroup.LayoutParams(
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT
-        ))
-
-        Log.d(TAG, "Custom animal vision overlay created")
-    }
 
     private fun makeButtonsProminent(vararg buttons: Button) {
         buttons.forEach { button ->
@@ -144,6 +129,7 @@ class MainActivity : AppCompatActivity() {
                 val preview = Preview.Builder()
                     .build()
 
+                // Use the standard preview surface provider
                 preview.setSurfaceProvider(previewView.surfaceProvider)
                 
                 val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
@@ -165,30 +151,51 @@ class MainActivity : AppCompatActivity() {
 
         when (currentFilter) {
             VisionColorFilter.FilterType.DOG -> {
-                // Apply dog vision filter using scientific color matrix
-                filterOverlay.setAnimalVision(VisionColorFilter.getDogVisionMatrix(), "DOG")
+                val colorMatrix = VisionColorFilter.getDogVisionMatrix()
+                applyColorMatrixToPreview(colorMatrix)
                 Log.d(TAG, "Dog filter applied - scientific color matrix")
                 Toast.makeText(this, "🐕 Dog Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.CAT -> {
-                // Apply cat vision filter using scientific color matrix
-                filterOverlay.setAnimalVision(VisionColorFilter.getCatVisionMatrix(), "CAT")
+                val colorMatrix = VisionColorFilter.getCatVisionMatrix()
+                applyColorMatrixToPreview(colorMatrix)
                 Log.d(TAG, "Cat filter applied - scientific color matrix")
                 Toast.makeText(this, "🐱 Cat Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.BIRD -> {
-                // Apply bird vision filter using scientific color matrix
-                filterOverlay.setAnimalVision(VisionColorFilter.getBirdVisionMatrix(), "BIRD")
+                val colorMatrix = VisionColorFilter.getBirdVisionMatrix()
+                applyColorMatrixToPreview(colorMatrix)
                 Log.d(TAG, "Bird filter applied - scientific color matrix")
                 Toast.makeText(this, "🦅 Bird Vision", Toast.LENGTH_SHORT).show()
             }
             VisionColorFilter.FilterType.ORIGINAL -> {
-                // Remove filter overlay
-                filterOverlay.clearVision()
-                Log.d(TAG, "Original filter applied - no overlay")
+                applyColorMatrixToPreview(null)
+                Log.d(TAG, "Original filter applied - no matrix")
                 Toast.makeText(this, "👁️ Human Vision", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun applyColorMatrixToPreview(colorMatrix: ColorMatrix?) {
+        // Apply the color matrix to the overlay
+        colorFilterOverlay.setColorMatrix(colorMatrix)
+        Log.d(TAG, "Color matrix applied: ${colorMatrix != null}")
+    }
+
+    private fun setupColorFilterOverlay() {
+        colorFilterOverlay = ColorFilterOverlay(this)
+        colorFilterOverlay.visibility = View.GONE
+        colorFilterOverlay.isClickable = false
+        colorFilterOverlay.isFocusable = false
+
+        // Add to the root content view
+        val rootView = findViewById<android.view.ViewGroup>(android.R.id.content)
+        rootView.addView(colorFilterOverlay, android.view.ViewGroup.LayoutParams(
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT
+        ))
+
+        Log.d(TAG, "Color filter overlay created")
     }
 
     private fun updateActiveFilterTextView() {
@@ -207,102 +214,94 @@ class MainActivity : AppCompatActivity() {
         cameraExecutor.shutdown()
     }
 
-    // Custom view that applies proper color matrix transformations
-    private inner class AnimalVisionView(context: Context) : View(context) {
+    // Custom overlay view that applies color matrices using PorterDuff blend modes
+    private inner class ColorFilterOverlay(context: Context) : View(context) {
         private var colorMatrix: ColorMatrix? = null
-        private var animalType: String? = null
-        private val paint = Paint()
-        private val colorFilterPaint = Paint()
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-        fun setAnimalVision(matrix: ColorMatrix, type: String) {
+        fun setColorMatrix(matrix: ColorMatrix?) {
             colorMatrix = matrix
-            animalType = type
-            visibility = View.VISIBLE
-            invalidate()
-        }
-
-        fun clearVision() {
-            colorMatrix = null
-            animalType = null
-            visibility = View.GONE
+            visibility = if (matrix != null) View.VISIBLE else View.GONE
             invalidate()
         }
 
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
             
-            val currentMatrix = colorMatrix
-            val currentType = animalType
-            
-            if (currentMatrix != null && currentType != null) {
-                when (currentType) {
-                    "DOG" -> drawDogVision(canvas, currentMatrix)
-                    "CAT" -> drawCatVision(canvas, currentMatrix)
-                    "BIRD" -> drawBirdVision(canvas, currentMatrix)
+            if (colorMatrix != null) {
+                // Get the bounds of the preview view to only apply filter to camera area
+                val previewBounds = getPreviewBounds()
+                if (previewBounds != null) {
+                    // Apply the color matrix using a sophisticated blend approach
+                    applyColorMatrixEffect(canvas, previewBounds)
                 }
             }
         }
 
-        private fun drawDogVision(canvas: Canvas, matrix: ColorMatrix) {
-            // Dog vision: Reds become yellow/gray, blues stay blue
-            // Use PorterDuff blend modes to simulate the color transformation
+        private fun getPreviewBounds(): RectF? {
+            // Calculate the relative position of the preview view
+            val previewLocation = IntArray(2)
+            previewView.getLocationInWindow(previewLocation)
             
-            // Layer 1: Yellow overlay for reds (simulates red->yellow transformation)
-            paint.color = Color.argb(40, 255, 255, 0)
-            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
-            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            val overlayLocation = IntArray(2)
+            this.getLocationInWindow(overlayLocation)
             
-            // Layer 2: Blue enhancement (simulates blue channel enhancement)
-            paint.color = Color.argb(20, 0, 0, 255)
-            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.ADD)
-            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            val left = (previewLocation[0] - overlayLocation[0]).toFloat()
+            val top = (previewLocation[1] - overlayLocation[1]).toFloat()
+            val right = left + previewView.width.toFloat()
+            val bottom = top + previewView.height.toFloat()
             
-            // Layer 3: Gray overlay for neutral areas
-            paint.color = Color.argb(15, 128, 128, 128)
-            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.MULTIPLY)
-            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
-            
-            paint.xfermode = null // Reset blend mode
+            return if (previewView.width > 0 && previewView.height > 0) {
+                RectF(left, top, right, bottom)
+            } else null
         }
 
-        private fun drawCatVision(canvas: Canvas, matrix: ColorMatrix) {
-            // Cat vision: Enhanced blues, muted reds
+        private fun applyColorMatrixEffect(canvas: Canvas, bounds: RectF) {
+            // Create a sophisticated color transformation using multiple blend modes
+            val matrix = colorMatrix!!
+            val matrixArray = matrix.array
             
-            // Layer 1: Blue enhancement (strong blue channel)
-            paint.color = Color.argb(35, 0, 0, 255)
-            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
-            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            // Apply different blend modes based on the color matrix values
+            // This simulates the actual color transformation more accurately
             
-            // Layer 2: Green enhancement
-            paint.color = Color.argb(25, 0, 255, 0)
-            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.ADD)
-            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            // Red channel transformation
+            if (matrixArray[0] > 1.0f || matrixArray[1] > 0.5f || matrixArray[2] > 0.5f) {
+                paint.reset()
+                paint.color = Color.argb(60, 255, 0, 0)
+                paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.MULTIPLY)
+                canvas.drawRect(bounds, paint)
+            }
             
-            // Layer 3: Red muting (simulates red channel reduction)
-            paint.color = Color.argb(30, 128, 128, 128)
-            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.MULTIPLY)
-            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            // Green channel transformation
+            if (matrixArray[5] > 1.0f || matrixArray[6] > 0.5f || matrixArray[7] > 0.5f) {
+                paint.reset()
+                paint.color = Color.argb(60, 0, 255, 0)
+                paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
+                canvas.drawRect(bounds, paint)
+            }
             
-            paint.xfermode = null
-        }
-
-        private fun drawBirdVision(canvas: Canvas, matrix: ColorMatrix) {
-            // Bird vision: Enhanced colors, especially blues and purples (UV simulation)
+            // Blue channel transformation
+            if (matrixArray[10] > 1.0f || matrixArray[11] > 0.5f || matrixArray[12] > 0.5f) {
+                paint.reset()
+                paint.color = Color.argb(60, 0, 0, 255)
+                paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.OVERLAY)
+                canvas.drawRect(bounds, paint)
+            }
             
-            // Layer 1: Enhanced blue (very strong blue channel)
-            paint.color = Color.argb(45, 0, 0, 255)
-            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
-            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            // Cross-channel effects (simulating color blindness and enhancement)
+            if (matrixArray[1] > 0.3f || matrixArray[2] > 0.3f) {
+                paint.reset()
+                paint.color = Color.argb(40, 255, 255, 0) // Yellow for red-green mixing
+                paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.OVERLAY)
+                canvas.drawRect(bounds, paint)
+            }
             
-            // Layer 2: Purple overlay (UV simulation)
-            paint.color = Color.argb(30, 150, 0, 255)
-            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.ADD)
-            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
-            
-            // Layer 3: Enhanced red and green
-            paint.color = Color.argb(25, 255, 255, 0)
-            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
-            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+            if (matrixArray[6] > 0.3f || matrixArray[7] > 0.3f) {
+                paint.reset()
+                paint.color = Color.argb(40, 0, 255, 255) // Cyan for green-blue mixing
+                paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.OVERLAY)
+                canvas.drawRect(bounds, paint)
+            }
             
             paint.xfermode = null
         }

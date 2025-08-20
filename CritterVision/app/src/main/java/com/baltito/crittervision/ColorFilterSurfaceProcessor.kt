@@ -39,10 +39,9 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
                     "varying vec2 vTexCoord;\n" +
                     "uniform samplerExternalOES sTexture;\n" +
                     "uniform mat4 uColorMatrix;\n" +
-                    "uniform vec4 uColorOffset;\n" +
                     "void main() {\n" +
                     "  vec4 texColor = texture2D(sTexture, vTexCoord);\n" +
-                    "  vec4 transformedColor = uColorMatrix * texColor + uColorOffset;\n" +
+                    "  vec4 transformedColor = uColorMatrix * texColor;\n" +
                     "  gl_FragColor = clamp(transformedColor, 0.0, 1.0);\n" +
                     "}\n"
     }
@@ -56,15 +55,13 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
     private var positionHandle: Int = 0
     private var texCoordHandle: Int = 0
     private var colorMatrixHandle: Int = 0
-    private var colorOffsetHandle: Int = 0
     private var oesTextureId: Int = 0
 
     private val vertexBuffer: FloatBuffer
     private val texCoordBuffer: FloatBuffer
 
-    private var currentColorMatrix: ColorMatrix? = null // FIXED: Changed from ColorMatrixColorFilter to ColorMatrix
+    private var currentColorMatrix: ColorMatrix? = null
     private val glMatrix = FloatArray(16)
-    private val glOffset = FloatArray(4)
 
     @Volatile private var isReleased = false
 
@@ -93,21 +90,38 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
         setFilter(null)
     }
 
-    fun setFilter(colorMatrix: ColorMatrix?) { // FIXED: Changed parameter from ColorMatrixColorFilter to ColorMatrix
+    fun setFilter(colorMatrix: ColorMatrix?) {
         currentColorMatrix = colorMatrix
         if (colorMatrix != null) {
-            val matrixSrc = colorMatrix.array // FIXED: Direct access to array property
-            glMatrix[0]=matrixSrc[0];  glMatrix[4]=matrixSrc[1];  glMatrix[8]=matrixSrc[2];   glMatrix[12]=matrixSrc[3];
-            glMatrix[1]=matrixSrc[5];  glMatrix[5]=matrixSrc[6];  glMatrix[9]=matrixSrc[7];   glMatrix[13]=matrixSrc[8];
-            glMatrix[2]=matrixSrc[10]; glMatrix[6]=matrixSrc[11]; glMatrix[10]=matrixSrc[12]; glMatrix[14]=matrixSrc[13];
-            glMatrix[3]=matrixSrc[15]; glMatrix[7]=matrixSrc[16]; glMatrix[11]=matrixSrc[17]; glMatrix[15]=matrixSrc[18];
-            glOffset[0] = matrixSrc[4] / 255.0f;
-            glOffset[1] = matrixSrc[9] / 255.0f;
-            glOffset[2] = matrixSrc[14] / 255.0f;
-            glOffset[3] = matrixSrc[19] / 255.0f;
+            val matrixSrc = colorMatrix.array
+            // Convert 5x4 ColorMatrix to 4x4 OpenGL matrix
+            // ColorMatrix format: [R,G,B,A,Offset] for each row
+            glMatrix[0] = matrixSrc[0]  // R->R
+            glMatrix[1] = matrixSrc[1]  // G->R  
+            glMatrix[2] = matrixSrc[2]  // B->R
+            glMatrix[3] = matrixSrc[3]  // A->R
+            
+            glMatrix[4] = matrixSrc[5]  // R->G
+            glMatrix[5] = matrixSrc[6]  // G->G
+            glMatrix[6] = matrixSrc[7]  // B->G
+            glMatrix[7] = matrixSrc[8]  // A->G
+            
+            glMatrix[8] = matrixSrc[10] // R->B
+            glMatrix[9] = matrixSrc[11] // G->B
+            glMatrix[10] = matrixSrc[12] // B->B
+            glMatrix[11] = matrixSrc[13] // A->B
+            
+            glMatrix[12] = matrixSrc[15] // R->A
+            glMatrix[13] = matrixSrc[16] // G->A
+            glMatrix[14] = matrixSrc[17] // B->A
+            glMatrix[15] = matrixSrc[18] // A->A
         } else {
-            glMatrix.fill(0f); glOffset.fill(0f)
-            glMatrix[0]=1f; glMatrix[5]=1f; glMatrix[10]=1f; glMatrix[15]=1f;
+            // Identity matrix
+            glMatrix.fill(0f)
+            glMatrix[0] = 1f
+            glMatrix[5] = 1f
+            glMatrix[10] = 1f
+            glMatrix[15] = 1f
         }
 
         // If EGL context is initialized, apply the filter on GL thread
@@ -189,7 +203,7 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
     }
 
     override fun onOutputSurface(surfaceOutput: SurfaceOutput) {
-        Log.d(TAG, "onOutputSurface provided. SurfaceOutput: $surfaceOutput") // FIXED: Updated log message
+        Log.d(TAG, "onOutputSurface provided. SurfaceOutput: $surfaceOutput")
         if (isReleased) {
             Log.w(TAG, "onOutputSurface: Processor already released.")
             return
@@ -201,14 +215,14 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
                 this.surfaceOutput?.close()
                 this.surfaceOutput = surfaceOutput
 
-                val outputSurface = surfaceOutput.getSurface(glExecutor) { event -> // FIXED: Use getSurface correctly
+                val outputSurface = surfaceOutput.getSurface(glExecutor) { event ->
                     Log.d(TAG, "SurfaceOutput event: ${event.eventCode}")
                     if (event.eventCode == SurfaceOutput.Event.EVENT_REQUEST_CLOSE) {
                         Log.w(TAG, "Output surface close requested by provider.")
                     }
                 }
 
-                initEGL(outputSurface) // FIXED: Pass the Surface directly
+                initEGL(outputSurface)
                 setFilter(currentColorMatrix)
 
                 Log.d(TAG, "EGL initialized for output surface.")
@@ -282,7 +296,6 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
             positionHandle = GLES20.glGetAttribLocation(programHandle, "aPosition")
             texCoordHandle = GLES20.glGetAttribLocation(programHandle, "aTexCoord")
             colorMatrixHandle = GLES20.glGetUniformLocation(programHandle, "uColorMatrix")
-            colorOffsetHandle = GLES20.glGetUniformLocation(programHandle, "uColorOffset")
             Log.d(TAG, "GL Program Initialized. Program Handle: $programHandle")
         }
     }
@@ -304,7 +317,6 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
     private fun applyShaderUniforms() {
         GLES20.glUseProgram(programHandle)
         GLES20.glUniformMatrix4fv(colorMatrixHandle, 1, false, glMatrix, 0)
-        GLES20.glUniform4fv(colorOffsetHandle, 1, glOffset, 0)
         GLES20.glUniform1i(GLES20.glGetUniformLocation(programHandle, "sTexture"), 0)
     }
 
@@ -312,6 +324,7 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
         if (isReleased) return
 
         GLES20.glViewport(0, 0, resolution.width, resolution.height)
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
 
         GLES20.glUseProgram(programHandle)
         applyShaderUniforms()
