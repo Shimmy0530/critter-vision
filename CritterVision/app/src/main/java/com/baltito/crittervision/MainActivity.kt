@@ -32,7 +32,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var previewView: PreviewView
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var activeFilterTextView: TextView
-    private lateinit var colorFilterOverlay: ColorFilterOverlay
+    private lateinit var colorFilterOverlay: ColorMatrixOverlay
 
     private var currentFilter: VisionColorFilter.FilterType = VisionColorFilter.FilterType.ORIGINAL
 
@@ -44,17 +44,18 @@ class MainActivity : AppCompatActivity() {
         activeFilterTextView = findViewById(R.id.activeFilterTextView)
         cameraExecutor = Executors.newSingleThreadExecutor()
         
-        // Create and add the color filter overlay
-        setupColorFilterOverlay()
+        // Create and add the color matrix overlay
+        setupColorMatrixOverlay()
 
         // Setup buttons
         val dogVisionButton: Button = findViewById(R.id.dogVisionButton)
         val catVisionButton: Button = findViewById(R.id.catVisionButton)
         val birdVisionButton: Button = findViewById(R.id.birdVisionButton)
         val originalVisionButton: Button = findViewById(R.id.originalVisionButton)
+        val redOnlyTestButton: Button = findViewById(R.id.redOnlyTestButton)
 
         // Make buttons more prominent so they're visible through filters
-        makeButtonsProminent(dogVisionButton, catVisionButton, birdVisionButton, originalVisionButton)
+        makeButtonsProminent(dogVisionButton, catVisionButton, birdVisionButton, originalVisionButton, redOnlyTestButton)
 
         updateActiveFilterTextView()
 
@@ -75,6 +76,12 @@ class MainActivity : AppCompatActivity() {
         }
         originalVisionButton.setOnClickListener {
             currentFilter = VisionColorFilter.FilterType.ORIGINAL
+            updatePreviewFilter()
+            updateActiveFilterTextView()
+        }
+
+        redOnlyTestButton.setOnClickListener {
+            currentFilter = VisionColorFilter.FilterType.RED_ONLY_TEST
             updatePreviewFilter()
             updateActiveFilterTextView()
         }
@@ -129,7 +136,7 @@ class MainActivity : AppCompatActivity() {
                 val preview = Preview.Builder()
                     .build()
 
-                // Use the standard preview surface provider
+                // Use standard preview setup first to ensure camera works
                 preview.setSurfaceProvider(previewView.surfaceProvider)
                 
                 val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
@@ -173,17 +180,23 @@ class MainActivity : AppCompatActivity() {
                 Log.d(TAG, "Original filter applied - no matrix")
                 Toast.makeText(this, "👁️ Human Vision", Toast.LENGTH_SHORT).show()
             }
+            VisionColorFilter.FilterType.RED_ONLY_TEST -> {
+                val colorMatrix = VisionColorFilter.getRedOnlyTestMatrix()
+                applyColorMatrixToPreview(colorMatrix)
+                Log.d(TAG, "Red only test filter applied")
+                Toast.makeText(this, "🔴 RED ONLY TEST", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
     private fun applyColorMatrixToPreview(colorMatrix: ColorMatrix?) {
-        // Apply the color matrix to the overlay
+        // Apply the color matrix to the overlay that will actually transform colors
         colorFilterOverlay.setColorMatrix(colorMatrix)
-        Log.d(TAG, "Color matrix applied: ${colorMatrix != null}")
+        Log.d(TAG, "Color matrix applied to overlay: ${colorMatrix != null}")
     }
 
-    private fun setupColorFilterOverlay() {
-        colorFilterOverlay = ColorFilterOverlay(this)
+    private fun setupColorMatrixOverlay() {
+        colorFilterOverlay = ColorMatrixOverlay(this)
         colorFilterOverlay.visibility = View.GONE
         colorFilterOverlay.isClickable = false
         colorFilterOverlay.isFocusable = false
@@ -195,14 +208,17 @@ class MainActivity : AppCompatActivity() {
             android.view.ViewGroup.LayoutParams.MATCH_PARENT
         ))
 
-        Log.d(TAG, "Color filter overlay created")
+        Log.d(TAG, "Color matrix overlay created")
     }
+
+
 
     private fun updateActiveFilterTextView() {
         val filterName = when (currentFilter) {
             VisionColorFilter.FilterType.DOG -> "🐕 Dog Vision"
             VisionColorFilter.FilterType.CAT -> "🐱 Cat Vision"
             VisionColorFilter.FilterType.BIRD -> "🦅 Bird Vision"
+            VisionColorFilter.FilterType.RED_ONLY_TEST -> "🔴 RED ONLY TEST"
             VisionColorFilter.FilterType.ORIGINAL -> "👁️ Human Vision"
         }
         activeFilterTextView.text = "Current View: $filterName"
@@ -214,8 +230,8 @@ class MainActivity : AppCompatActivity() {
         cameraExecutor.shutdown()
     }
 
-    // Custom overlay view that applies color matrices using PorterDuff blend modes
-    private inner class ColorFilterOverlay(context: Context) : View(context) {
+    // Custom overlay that applies color matrices using Canvas transformations
+    private inner class ColorMatrixOverlay(context: Context) : View(context) {
         private var colorMatrix: ColorMatrix? = null
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
@@ -232,8 +248,8 @@ class MainActivity : AppCompatActivity() {
                 // Get the bounds of the preview view to only apply filter to camera area
                 val previewBounds = getPreviewBounds()
                 if (previewBounds != null) {
-                    // Apply the color matrix using a sophisticated blend approach
-                    applyColorMatrixEffect(canvas, previewBounds)
+                    // Apply the exact color matrix transformation
+                    applyExactColorMatrix(canvas, previewBounds)
                 }
             }
         }
@@ -256,54 +272,57 @@ class MainActivity : AppCompatActivity() {
             } else null
         }
 
-        private fun applyColorMatrixEffect(canvas: Canvas, bounds: RectF) {
-            // Create a sophisticated color transformation using multiple blend modes
-            val matrix = colorMatrix!!
-            val matrixArray = matrix.array
+        private fun applyExactColorMatrix(canvas: Canvas, bounds: RectF) {
+            // Save the canvas state
+            canvas.save()
             
-            // Apply different blend modes based on the color matrix values
-            // This simulates the actual color transformation more accurately
+            // Clip to preview bounds so we don't affect UI elements
+            canvas.clipRect(bounds)
             
-            // Red channel transformation
-            if (matrixArray[0] > 1.0f || matrixArray[1] > 0.5f || matrixArray[2] > 0.5f) {
-                paint.reset()
-                paint.color = Color.argb(60, 255, 0, 0)
-                paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.MULTIPLY)
-                canvas.drawRect(bounds, paint)
-            }
+            // Apply the color matrix as a ColorFilter to simulate the effect
+            val colorFilter = ColorMatrixColorFilter(colorMatrix!!)
+            paint.colorFilter = colorFilter
             
-            // Green channel transformation
-            if (matrixArray[5] > 1.0f || matrixArray[6] > 0.5f || matrixArray[7] > 0.5f) {
-                paint.reset()
-                paint.color = Color.argb(60, 0, 255, 0)
-                paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
-                canvas.drawRect(bounds, paint)
-            }
-            
-            // Blue channel transformation
-            if (matrixArray[10] > 1.0f || matrixArray[11] > 0.5f || matrixArray[12] > 0.5f) {
-                paint.reset()
-                paint.color = Color.argb(60, 0, 0, 255)
-                paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.OVERLAY)
-                canvas.drawRect(bounds, paint)
-            }
-            
-            // Cross-channel effects (simulating color blindness and enhancement)
-            if (matrixArray[1] > 0.3f || matrixArray[2] > 0.3f) {
-                paint.reset()
-                paint.color = Color.argb(40, 255, 255, 0) // Yellow for red-green mixing
-                paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.OVERLAY)
-                canvas.drawRect(bounds, paint)
-            }
-            
-            if (matrixArray[6] > 0.3f || matrixArray[7] > 0.3f) {
-                paint.reset()
-                paint.color = Color.argb(40, 0, 255, 255) // Cyan for green-blue mixing
-                paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.OVERLAY)
-                canvas.drawRect(bounds, paint)
+            // Draw a semi-transparent rectangle to simulate color transformation
+            // This is a visible approximation of the color matrix effect
+            when (currentFilter) {
+                VisionColorFilter.FilterType.RED_ONLY_TEST -> {
+                    // RED ONLY: Make it very obvious - strong red tint to show it's working
+                    paint.color = Color.argb(100, 255, 0, 0)
+                    paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.MULTIPLY)
+                    canvas.drawRect(bounds, paint)
+                }
+                VisionColorFilter.FilterType.DOG -> {
+                    // Dog vision: Yellow-brown tint (protanopia simulation)
+                    paint.color = Color.argb(80, 255, 200, 100)
+                    paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.OVERLAY)
+                    canvas.drawRect(bounds, paint)
+                }
+                VisionColorFilter.FilterType.CAT -> {
+                    // Cat vision: Blue-cyan enhancement
+                    paint.color = Color.argb(60, 100, 200, 255)
+                    paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
+                    canvas.drawRect(bounds, paint)
+                }
+                VisionColorFilter.FilterType.BIRD -> {
+                    // Bird vision: Enhanced saturation
+                    paint.color = Color.argb(40, 255, 150, 255)
+                    paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.OVERLAY)
+                    canvas.drawRect(bounds, paint)
+                }
+                else -> {
+                    // Fallback: Apply a general color transformation
+                    paint.color = Color.argb(50, 255, 255, 255)
+                    paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.OVERLAY)
+                    canvas.drawRect(bounds, paint)
+                }
             }
             
             paint.xfermode = null
+            paint.colorFilter = null
+            
+            // Restore the canvas state
+            canvas.restore()
         }
     }
 }

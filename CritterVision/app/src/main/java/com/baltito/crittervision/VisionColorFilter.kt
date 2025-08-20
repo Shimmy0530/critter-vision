@@ -10,7 +10,7 @@ import android.graphics.ColorMatrix
 object VisionColorFilter {
 
     enum class FilterType {
-        ORIGINAL, DOG, CAT, BIRD
+        ORIGINAL, DOG, CAT, BIRD, RED_ONLY_TEST
     }
 
     /**
@@ -80,11 +80,28 @@ object VisionColorFilter {
         }
     }
 
+    /**
+     * TEST FILTER: Red only - converts green and blue to grayscale, keeps red channel
+     * This clearly demonstrates if color matrices are working properly
+     */
+    fun getRedOnlyTestMatrix(): ColorMatrix {
+        // Red only matrix: Green and blue channels become grayscale luminance
+        // This should make everything red/gray with no green or blue colors
+        val redOnlyMatrix = floatArrayOf(
+            1.0f, 0.0f, 0.0f, 0.0f, 0.0f,  // Red channel unchanged
+            0.3f, 0.3f, 0.3f, 0.0f, 0.0f,  // Green becomes grayscale (R*0.3 + G*0.3 + B*0.3)
+            0.3f, 0.3f, 0.3f, 0.0f, 0.0f,  // Blue becomes grayscale (R*0.3 + G*0.3 + B*0.3)
+            0.0f, 0.0f, 0.0f, 1.0f, 0.0f   // Alpha unchanged
+        )
+        return ColorMatrix(redOnlyMatrix)
+    }
+
     fun getMatrix(type: FilterType): ColorMatrix? {
         return when (type) {
             FilterType.DOG -> getDogVisionMatrix()
             FilterType.CAT -> getCatVisionMatrix()
             FilterType.BIRD -> getBirdVisionMatrix()
+            FilterType.RED_ONLY_TEST -> getRedOnlyTestMatrix()
             FilterType.ORIGINAL -> getHumanVisionMatrix()
         }
     }
@@ -97,6 +114,7 @@ object VisionColorFilter {
             FilterType.DOG -> "Dichromatic vision (429nm, 555nm peaks) - Red-green colorblind, sees blues and yellows"
             FilterType.CAT -> "Dichromatic vision with enhanced blue sensitivity - Reds appear muted, blues enhanced"
             FilterType.BIRD -> "Tetrachromatic vision with UV perception - Enhanced color perception and UV patterns"
+            FilterType.RED_ONLY_TEST -> "TEST: Red channel only - Green and blue converted to grayscale"
             FilterType.ORIGINAL -> "Human trichromatic vision (420nm, 534nm, 564nm peaks)"
         }
     }

@@ -77,6 +77,21 @@
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_marginStart="4dp"/>
         </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <Button
+                android:id="@+id/redOnlyTestButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🔴 RED ONLY TEST"
+                style="?android:attr/buttonBarButtonStyle"
+                android:backgroundTint="#FFB3B3"/>
+        </LinearLayout>
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
