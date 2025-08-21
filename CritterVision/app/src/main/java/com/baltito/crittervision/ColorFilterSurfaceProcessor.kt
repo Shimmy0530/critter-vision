@@ -44,6 +44,59 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
                     "  vec4 transformedColor = uColorMatrix * texColor;\n" +
                     "  gl_FragColor = clamp(transformedColor, 0.0, 1.0);\n" +
                     "}\n"
+                    
+        // Advanced animal-specific shaders with spectral simulation
+        private const val DOG_FRAGMENT_SHADER =
+            "#extension GL_OES_EGL_image_external : require\n" +
+            "precision mediump float;\n" +
+            "varying vec2 vTexCoord;\n" +
+            "uniform samplerExternalOES sTexture;\n" +
+            "void main() {\n" +
+            "  vec4 color = texture2D(sTexture, vTexCoord);\n" +
+            "  // Simulate dichromatic vision with S-cone (430nm) and L-cone (555nm) responses\n" +
+            "  float sResponse = color.b * 0.9 + color.g * 0.1; // Blue-violet sensitivity\n" +
+            "  float lResponse = color.r * 0.7 + color.g * 0.8; // Yellow-green sensitivity\n" +
+            "  // Red-green confusion: both map to yellow-brown spectrum\n" +
+            "  float yellowBrown = lResponse * 0.85;\n" +
+            "  gl_FragColor = vec4(yellowBrown, yellowBrown * 0.8, sResponse, color.a);\n" +
+            "}\n"
+            
+        private const val CAT_FRAGMENT_SHADER =
+            "#extension GL_OES_EGL_image_external : require\n" +
+            "precision mediump float;\n" +
+            "varying vec2 vTexCoord;\n" +
+            "uniform samplerExternalOES sTexture;\n" +
+            "void main() {\n" +
+            "  vec4 color = texture2D(sTexture, vTexCoord);\n" +
+            "  // Simulate limited dichromatic with possible M-cone at 500nm\n" +
+            "  float sResponse = color.b * 0.85 + color.g * 0.15; // 450nm blue sensitivity\n" +
+            "  float mResponse = color.g * 0.6 + color.b * 0.2;   // 500nm possible middle cone\n" +
+            "  float lResponse = color.r * 0.6 + color.g * 0.7;   // 555nm green sensitivity\n" +
+            "  // Enhanced blue perception, muted reds\n" +
+            "  vec3 catVision = vec3(lResponse * 0.7, mResponse, sResponse * 1.1);\n" +
+            "  gl_FragColor = vec4(clamp(catVision, 0.0, 1.0), color.a);\n" +
+            "}\n"
+            
+        private const val BIRD_FRAGMENT_SHADER =
+            "#extension GL_OES_EGL_image_external : require\n" +
+            "precision mediump float;\n" +
+            "varying vec2 vTexCoord;\n" +
+            "uniform samplerExternalOES sTexture;\n" +
+            "void main() {\n" +
+            "  vec4 color = texture2D(sTexture, vTexCoord);\n" +
+            "  // Simulate tetrachromatic vision with UV contribution\n" +
+            "  float uvResponse = (color.r + color.g + color.b) * 0.15; // UV simulation\n" +
+            "  float sResponse = color.b * 1.3;  // 450nm blue enhanced\n" +
+            "  float mResponse = color.g * 1.4;  // 535nm green enhanced\n" +
+            "  float lResponse = color.r * 1.2;  // 565nm red enhanced\n" +
+            "  // Enhanced color discrimination with UV patterns\n" +
+            "  vec3 birdVision = vec3(\n" +
+            "    lResponse + uvResponse * 0.1,\n" +
+            "    mResponse + uvResponse * 0.1,\n" +
+            "    sResponse + uvResponse * 0.2\n" +
+            "  );\n" +
+            "  gl_FragColor = vec4(clamp(birdVision, 0.0, 1.0), color.a);\n" +
+            "}\n"
     }
 
     private val egl: EGL10 = EGLContext.getEGL() as EGL10
@@ -62,6 +115,7 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
 
     private var currentColorMatrix: ColorMatrix? = null
     private val glMatrix = FloatArray(16)
+    private var currentShaderType: VisionColorFilter.FilterType = VisionColorFilter.FilterType.ORIGINAL
 
     @Volatile private var isReleased = false
 
@@ -383,6 +437,92 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
                 oesTextureId = 0
             }
             Log.d(TAG, "All EGL and GL resources released.")
+        }
+    }
+    
+    /**
+     * Set animal-specific vision filter using advanced GLSL shaders
+     * @param filterType The type of animal vision to simulate
+     */
+    fun setAnimalVisionFilter(filterType: VisionColorFilter.FilterType) {
+        currentShaderType = filterType
+        val shaderCode = when (filterType) {
+            VisionColorFilter.FilterType.DOG_ADVANCED -> DOG_FRAGMENT_SHADER
+            VisionColorFilter.FilterType.CAT_ADVANCED -> CAT_FRAGMENT_SHADER  
+            VisionColorFilter.FilterType.BIRD_ADVANCED -> BIRD_FRAGMENT_SHADER
+            else -> FRAGMENT_SHADER_CODE // Default matrix-based for other types
+        }
+        
+        Log.d(TAG, "Setting animal vision filter: $filterType")
+        
+        // Recompile shader with animal-specific code
+        glExecutor.execute {
+            if (isReleased) return@execute
+            try {
+                if (egl.eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext)) {
+                    recompileShader(shaderCode)
+                } else {
+                    Log.e(TAG, "setAnimalVisionFilter: eglMakeCurrent failed: ${egl.eglGetError()}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error setting animal vision filter", e)
+            }
+        }
+    }
+    
+    /**
+     * Recompile shader program with new fragment shader code
+     * @param fragmentShaderCode New fragment shader source code
+     */
+    private fun recompileShader(fragmentShaderCode: String) {
+        if (programHandle != 0) {
+            GLES20.glDeleteProgram(programHandle)
+            programHandle = 0
+        }
+        
+        try {
+            programHandle = GLES20.glCreateProgram().also {
+                GLES20.glAttachShader(it, loadShader(GLES20.GL_VERTEX_SHADER, VERTEX_SHADER_CODE))
+                GLES20.glAttachShader(it, loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentShaderCode))
+                GLES20.glLinkProgram(it)
+                val linkStatus = IntArray(1)
+                GLES20.glGetProgramiv(it, GLES20.GL_LINK_STATUS, linkStatus, 0)
+                if (linkStatus[0] == 0) {
+                    val info = GLES20.glGetProgramInfoLog(it)
+                    GLES20.glDeleteProgram(it)
+                    throw RuntimeException("Could not link program: $info")
+                }
+            }
+            positionHandle = GLES20.glGetAttribLocation(programHandle, "aPosition")
+            texCoordHandle = GLES20.glGetAttribLocation(programHandle, "aTexCoord")
+            colorMatrixHandle = GLES20.glGetUniformLocation(programHandle, "uColorMatrix")
+            
+            Log.d(TAG, "Shader recompiled successfully for $currentShaderType")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to recompile shader", e)
+            throw e
+        }
+    }
+    
+    /**
+     * Enhanced setFilter method that supports both matrix and shader-based filtering
+     */
+    fun setFilterWithType(colorMatrix: ColorMatrix?, filterType: VisionColorFilter.FilterType) {
+        currentColorMatrix = colorMatrix
+        currentShaderType = filterType
+        
+        // Use advanced shaders for advanced filter types
+        when (filterType) {
+            VisionColorFilter.FilterType.DOG_ADVANCED,
+            VisionColorFilter.FilterType.CAT_ADVANCED,
+            VisionColorFilter.FilterType.BIRD_ADVANCED -> {
+                setAnimalVisionFilter(filterType)
+                return
+            }
+            else -> {
+                // Use regular matrix-based filtering
+                setFilter(colorMatrix)
+            }
         }
     }
 }
