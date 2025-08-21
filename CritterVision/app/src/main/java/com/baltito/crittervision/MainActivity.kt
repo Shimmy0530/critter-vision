@@ -16,7 +16,8 @@ import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import android.widget.ImageView
-import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
+ import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeUnit
 import java.util.Timer
 import java.util.TimerTask
@@ -34,11 +35,10 @@ class MainActivity : AppCompatActivity() {
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
     }
 
-    private lateinit var previewView: PreviewView
     private lateinit var processedImageView: ImageView
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var activeFilterTextView: TextView
-    private var imageCapture: ImageCapture? = null
+    private var imageAnalyzer: ImageAnalysis? = null
 
     private var currentFilter: VisionColorFilter.FilterType = VisionColorFilter.FilterType.ORIGINAL
 
@@ -46,7 +46,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        previewView = findViewById(R.id.previewView)
         processedImageView = findViewById(R.id.processedImageView)
         activeFilterTextView = findViewById(R.id.activeFilterTextView)
         cameraExecutor = Executors.newSingleThreadExecutor()
@@ -137,26 +136,20 @@ class MainActivity : AppCompatActivity() {
             try {
                 val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
 
-                // Preview use case
-                val preview = Preview.Builder()
+                // ImageAnalysis use case for processing frames
+                imageAnalyzer = ImageAnalysis.Builder()
+                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build()
                     .also {
-                        it.setSurfaceProvider(previewView.surfaceProvider)
+                        it.setAnalyzer(cameraExecutor, RgbImageAnalyzer())
                     }
 
-                // ImageCapture use case for capturing frames
-                imageCapture = ImageCapture.Builder()
-                    .build()
-                
                 val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
                 cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture)
+                cameraProvider.bindToLifecycle(this, cameraSelector, imageAnalyzer)
 
-                // Start continuous frame capture for color matrix processing
-                startFrameCapture()
-
-                Log.d(TAG, "Camera started successfully")
+                Log.d(TAG, "Camera started successfully with ImageAnalysis")
 
             } catch (e: Exception) {
                 Log.e(TAG, "Use case binding failed", e)
@@ -165,105 +158,60 @@ class MainActivity : AppCompatActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
-    private fun startFrameCapture() {
-        // Capture frames continuously for processing
-        val captureTimer = java.util.Timer()
-        captureTimer.scheduleAtFixedRate(object : java.util.TimerTask() {
-            override fun run() {
-                captureAndProcessFrame()
+    private inner class RgbImageAnalyzer : ImageAnalysis.Analyzer {
+        override fun analyze(image: ImageProxy) {
+            val bitmap = image.toBitmap()
+            val rotationDegrees = image.imageInfo.rotationDegrees
+
+            // Create a matrix for the rotation
+            val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
+            val rotatedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+
+            runOnUiThread {
+                processedImageView.setImageBitmap(rotatedBitmap)
+                applyColorMatrixToImageView()
             }
-        }, 0, 100) // Capture every 100ms for smooth video-like effect
+            
+            image.close()
+        }
     }
 
-    private fun captureAndProcessFrame() {
-        val imageCapture = imageCapture ?: return
+    private fun ImageProxy.toBitmap(): Bitmap {
+        val yBuffer = planes[0].buffer // Y
+        val uBuffer = planes[1].buffer // U
+        val vBuffer = planes[2].buffer // V
 
-        val outputStream = ByteArrayOutputStream()
-        val outputFileOptions = ImageCapture.OutputFileOptions.Builder(outputStream).build()
+        val ySize = yBuffer.remaining()
+        val uSize = uBuffer.remaining()
+        val vSize = vBuffer.remaining()
 
-        imageCapture.takePicture(
-            outputFileOptions,
-            ContextCompat.getMainExecutor(this),
-            object : ImageCapture.OnImageSavedCallback {
-                override fun onError(exception: ImageCaptureException) {
-                    Log.e(TAG, "Photo capture failed: ${exception.message}", exception)
-                }
+        val nv21 = ByteArray(ySize + uSize + vSize)
 
-                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                    val imageBytes = outputStream.toByteArray()
-                    val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-                    
-                    // Apply color matrix to the bitmap and display in ImageView
-                    runOnUiThread {
-                        processedImageView.setImageBitmap(bitmap)
-                        applyColorMatrixToImageView()
-                    }
-                }
-            }
-        )
+        yBuffer.get(nv21, 0, ySize)
+        vBuffer.get(nv21, ySize, vSize)
+        uBuffer.get(nv21, ySize + vSize, uSize)
+
+        val yuvImage = YuvImage(nv21, ImageFormat.NV21, this.width, this.height, null)
+        val out = ByteArrayOutputStream()
+        yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 100, out)
+        val imageBytes = out.toByteArray()
+        return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
     }
 
     private fun updatePreviewFilter() {
-        Log.d(TAG, "Applying filter: $currentFilter")
-
-        when (currentFilter) {
-            VisionColorFilter.FilterType.DOG -> {
-                val colorMatrix = VisionColorFilter.getDogVisionMatrix()
-                applyColorMatrixToPreview(colorMatrix)
-                Log.d(TAG, "Dog filter applied - scientific color matrix")
-                Toast.makeText(this, "🐕 Dog Vision", Toast.LENGTH_SHORT).show()
-            }
-            VisionColorFilter.FilterType.CAT -> {
-                val colorMatrix = VisionColorFilter.getCatVisionMatrix()
-                applyColorMatrixToPreview(colorMatrix)
-                Log.d(TAG, "Cat filter applied - scientific color matrix")
-                Toast.makeText(this, "🐱 Cat Vision", Toast.LENGTH_SHORT).show()
-            }
-            VisionColorFilter.FilterType.BIRD -> {
-                val colorMatrix = VisionColorFilter.getBirdVisionMatrix()
-                applyColorMatrixToPreview(colorMatrix)
-                Log.d(TAG, "Bird filter applied - scientific color matrix")
-                Toast.makeText(this, "🦅 Bird Vision", Toast.LENGTH_SHORT).show()
-            }
-            VisionColorFilter.FilterType.ORIGINAL -> {
-                applyColorMatrixToPreview(null)
-                Log.d(TAG, "Original filter applied - no matrix")
-                Toast.makeText(this, "👁️ Human Vision", Toast.LENGTH_SHORT).show()
-            }
-            VisionColorFilter.FilterType.RED_ONLY_TEST -> {
-                val colorMatrix = VisionColorFilter.getRedOnlyTestMatrix()
-                applyColorMatrixToPreview(colorMatrix)
-                Log.d(TAG, "Red only test filter applied")
-                Toast.makeText(this, "🔴 RED ONLY TEST", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    private fun applyColorMatrixToPreview(colorMatrix: ColorMatrix?) {
-        // This method now just triggers the ImageView update
-        applyColorMatrixToImageView()
-        Log.d(TAG, "Color matrix set for next frame: ${colorMatrix != null}")
+        // The actual filter application now happens in the analyzer
+        // This method just logs and updates the UI text
+        Log.d(TAG, "Filter changed to: $currentFilter")
     }
 
     private fun applyColorMatrixToImageView() {
-        // Apply color matrix directly to the ImageView - the proper way!
-        val colorMatrix = when (currentFilter) {
-            VisionColorFilter.FilterType.DOG -> VisionColorFilter.getDogVisionMatrix()
-            VisionColorFilter.FilterType.CAT -> VisionColorFilter.getCatVisionMatrix()
-            VisionColorFilter.FilterType.BIRD -> VisionColorFilter.getBirdVisionMatrix()
-            VisionColorFilter.FilterType.RED_ONLY_TEST -> VisionColorFilter.getRedOnlyTestMatrix()
-            VisionColorFilter.FilterType.ORIGINAL -> null
-        }
+        val colorMatrix = VisionColorFilter.getMatrix(currentFilter)
 
         if (colorMatrix != null) {
-            // Use the official Android API approach from your research
             val filter = ColorMatrixColorFilter(colorMatrix)
             processedImageView.colorFilter = filter
-            Log.d(TAG, "Applied ColorMatrixColorFilter to ImageView")
         } else {
-            // Remove color filter for original vision
             processedImageView.colorFilter = null
-            Log.d(TAG, "Removed ColorMatrixColorFilter from ImageView")
         }
     }
 
