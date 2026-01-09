@@ -116,138 +116,152 @@ object VisionColorFilter {
      * Advanced dog vision matrix using spectral response calculations
      * More sophisticated dichromatic simulation based on actual cone sensitivity curves
      */
-    fun getAdvancedDogMatrix(): ColorMatrix {
+    private val advancedDogMatrixArray: FloatArray by lazy {
         val matrix = FloatArray(20)
-        
+
         // Dog cone spectral sensitivity peaks
         val sConePeak = 430f  // Short wavelength (blue-violet)
         val lConePeak = 555f  // Long wavelength (yellow-green)
-        
+
         // RGB wavelength approximations
         val redWL = 650f
         val greenWL = 530f
         val blueWL = 430f
-        
+
         // Calculate spectral responses for each RGB component
         matrix[0] = calculateConeResponse(redWL, lConePeak) * 0.8f    // Red → L-cone response
         matrix[1] = calculateConeResponse(greenWL, lConePeak) * 0.9f  // Green → L-cone response
         matrix[2] = calculateConeResponse(blueWL, sConePeak) * 0.1f   // Blue → S-cone influence on red
         matrix[3] = 0f  // No alpha influence on red
         matrix[4] = 0f  // No offset
-        
+
         matrix[5] = calculateConeResponse(redWL, lConePeak) * 0.7f    // Red → L-cone for green channel
         matrix[6] = calculateConeResponse(greenWL, lConePeak) * 0.8f  // Green → L-cone response
         matrix[7] = calculateConeResponse(blueWL, sConePeak) * 0.05f  // Blue → slight S-cone influence
         matrix[8] = 0f  // No alpha influence on green
         matrix[9] = 0f  // No offset
-        
+
         matrix[10] = 0f // Red has no direct influence on blue channel
         matrix[11] = calculateConeResponse(greenWL, sConePeak) * 0.2f // Green → S-cone response
         matrix[12] = calculateConeResponse(blueWL, sConePeak) * 0.9f  // Blue → S-cone response
         matrix[13] = 0f // No alpha influence on blue
         matrix[14] = 0f // No offset
-        
+
         matrix[15] = 0f // Alpha channel
         matrix[16] = 0f
         matrix[17] = 0f
         matrix[18] = 1f // Preserve alpha
         matrix[19] = 0f // No offset
-        
-        return ColorMatrix(matrix)
+
+        matrix
     }
-    
+
+    fun getAdvancedDogMatrix(): ColorMatrix {
+        // Return a new ColorMatrix instance to avoid shared mutable state,
+        // but use the cached calculation for the array content.
+        return ColorMatrix(advancedDogMatrixArray)
+    }
+
     /**
      * Advanced cat vision matrix with enhanced spectral accuracy
      */
-    fun getAdvancedCatMatrix(): ColorMatrix {
+    private val advancedCatMatrixArray: FloatArray by lazy {
         val matrix = FloatArray(20)
-        
+
         // Cat cone spectral sensitivity peaks
         val sConePeak = 450f  // Short wavelength (blue)
         val mConePeak = 500f  // Possible middle wavelength
         val lConePeak = 555f  // Long wavelength (green)
-        
+
         // RGB wavelength approximations
         val redWL = 650f
         val greenWL = 530f
         val blueWL = 450f
-        
+
         // Calculate more nuanced spectral responses
         matrix[0] = calculateConeResponse(redWL, lConePeak) * 0.6f    // Red → L-cone
-        matrix[1] = calculateConeResponse(greenWL, lConePeak) * 0.7f + 
-                   calculateConeResponse(greenWL, mConePeak) * 0.2f   // Green → L+M cones
+        matrix[1] = calculateConeResponse(greenWL, lConePeak) * 0.7f +
+                calculateConeResponse(greenWL, mConePeak) * 0.2f   // Green → L+M cones
         matrix[2] = calculateConeResponse(blueWL, sConePeak) * 0.05f  // Blue → slight influence
         matrix[3] = 0f
         matrix[4] = 0f
-        
+
         matrix[5] = calculateConeResponse(redWL, lConePeak) * 0.5f    // Red → L-cone for green
-        matrix[6] = calculateConeResponse(greenWL, lConePeak) * 0.6f + 
-                   calculateConeResponse(greenWL, mConePeak) * 0.3f   // Green → L+M cones
+        matrix[6] = calculateConeResponse(greenWL, lConePeak) * 0.6f +
+                calculateConeResponse(greenWL, mConePeak) * 0.3f   // Green → L+M cones
         matrix[7] = calculateConeResponse(blueWL, sConePeak) * 0.1f   // Blue → S-cone influence
         matrix[8] = 0f
         matrix[9] = 0f
-        
+
         matrix[10] = 0f // Red minimal influence on blue
         matrix[11] = calculateConeResponse(greenWL, sConePeak) * 0.15f // Green → S-cone
         matrix[12] = calculateConeResponse(blueWL, sConePeak) * 0.85f  // Blue → S-cone
         matrix[13] = 0f
         matrix[14] = 0f
-        
+
         matrix[15] = 0f // Alpha channel
         matrix[16] = 0f
         matrix[17] = 0f
         matrix[18] = 1f
         matrix[19] = 0f
-        
-        return ColorMatrix(matrix)
+
+        matrix
     }
-    
+
+    fun getAdvancedCatMatrix(): ColorMatrix {
+        return ColorMatrix(advancedCatMatrixArray)
+    }
+
     /**
      * Advanced bird vision matrix simulating tetrachromatic perception
      */
-    fun getAdvancedBirdMatrix(): ColorMatrix {
+    private val advancedBirdMatrixArray: FloatArray by lazy {
         val matrix = FloatArray(20)
-        
+
         // Bird cone spectral sensitivity peaks
         val uvConePeak = 370f   // UV/Violet
         val sConePeak = 450f    // Short wavelength (blue)
         val mConePeak = 535f    // Medium wavelength (green)
         val lConePeak = 565f    // Long wavelength (red)
-        
+
         // RGB wavelength approximations
         val redWL = 650f
         val greenWL = 530f
         val blueWL = 450f
-        
+
         // Enhanced color discrimination with UV simulation
         matrix[0] = calculateConeResponse(redWL, lConePeak) * 1.3f +
-                   calculateConeResponse(redWL, uvConePeak) * 0.1f   // Red enhanced with UV contribution
+                calculateConeResponse(redWL, uvConePeak) * 0.1f   // Red enhanced with UV contribution
         matrix[1] = calculateConeResponse(greenWL, mConePeak) * 0.1f  // Cross-channel enhancement
         matrix[2] = calculateConeResponse(blueWL, uvConePeak) * 0.05f // UV contribution to red
         matrix[3] = 0f
         matrix[4] = 0f
-        
+
         matrix[5] = calculateConeResponse(redWL, lConePeak) * -0.1f   // Opponent processing
-        matrix[6] = calculateConeResponse(greenWL, mConePeak) * 1.4f + 
-                   calculateConeResponse(greenWL, uvConePeak) * 0.1f  // Green enhanced with UV
+        matrix[6] = calculateConeResponse(greenWL, mConePeak) * 1.4f +
+                calculateConeResponse(greenWL, uvConePeak) * 0.1f  // Green enhanced with UV
         matrix[7] = calculateConeResponse(blueWL, sConePeak) * -0.05f // Opponent processing
         matrix[8] = 0f
         matrix[9] = 0f
-        
+
         matrix[10] = calculateConeResponse(redWL, uvConePeak) * 0.05f // UV simulation
         matrix[11] = calculateConeResponse(greenWL, sConePeak) * -0.1f // Opponent processing
-        matrix[12] = calculateConeResponse(blueWL, sConePeak) * 1.5f + 
-                    calculateConeResponse(blueWL, uvConePeak) * 0.2f  // Blue enhanced with strong UV
+        matrix[12] = calculateConeResponse(blueWL, sConePeak) * 1.5f +
+                calculateConeResponse(blueWL, uvConePeak) * 0.2f  // Blue enhanced with strong UV
         matrix[13] = 0f
         matrix[14] = 0f
-        
+
         matrix[15] = 0f // Alpha channel
         matrix[16] = 0f
         matrix[17] = 0f
         matrix[18] = 1f
         matrix[19] = 0f
-        
-        return ColorMatrix(matrix)
+
+        matrix
+    }
+
+    fun getAdvancedBirdMatrix(): ColorMatrix {
+        return ColorMatrix(advancedBirdMatrixArray)
     }
     
     /**
