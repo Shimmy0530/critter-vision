@@ -18,7 +18,6 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import android.widget.ImageView
 import java.nio.ByteBuffer
- import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeUnit
 import java.util.Timer
 import java.util.TimerTask
@@ -282,6 +281,7 @@ class MainActivity : AppCompatActivity() {
                 // ImageAnalysis use case for processing frames
                 imageAnalyzer = ImageAnalysis.Builder()
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                     .build()
                     .also {
                         it.setAnalyzer(cameraExecutor, RgbImageAnalyzer())
@@ -302,13 +302,48 @@ class MainActivity : AppCompatActivity() {
     }
 
     private inner class RgbImageAnalyzer : ImageAnalysis.Analyzer {
+        private var rgbBitmap: Bitmap? = null
+        private var pixelBuffer: ByteArray? = null
+
         override fun analyze(image: ImageProxy) {
-            val bitmap = image.toBitmap()
+            val width = image.width
+            val height = image.height
+
+            // Initialize or reuse bitmap
+            if (rgbBitmap == null || rgbBitmap?.width != width || rgbBitmap?.height != height) {
+                rgbBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            }
+
+            val plane = image.planes[0]
+            val buffer = plane.buffer
+            val rowStride = plane.rowStride
+
+            // If the buffer is packed (rowStride == width * 4), we can copy directly
+            if (rowStride == width * 4) {
+                buffer.rewind()
+                rgbBitmap?.copyPixelsFromBuffer(buffer)
+            } else {
+                // Handle padding: copy row by row into a packed buffer
+                val bufferSize = width * height * 4
+                if (pixelBuffer == null || pixelBuffer?.size != bufferSize) {
+                    pixelBuffer = ByteArray(bufferSize)
+                }
+                val tempBuffer = pixelBuffer!!
+
+                buffer.rewind()
+                val rowWidth = width * 4
+                for (row in 0 until height) {
+                    buffer.position(row * rowStride)
+                    buffer.get(tempBuffer, row * rowWidth, rowWidth)
+                }
+                rgbBitmap?.copyPixelsFromBuffer(ByteBuffer.wrap(tempBuffer))
+            }
+
             val rotationDegrees = image.imageInfo.rotationDegrees
 
             // Create a matrix for the rotation
             val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
-            val rotatedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+            val rotatedBitmap = Bitmap.createBitmap(rgbBitmap!!, 0, 0, width, height, matrix, true)
 
             runOnUiThread {
                 processedImageView.setImageBitmap(rotatedBitmap)
@@ -317,28 +352,6 @@ class MainActivity : AppCompatActivity() {
             
             image.close()
         }
-    }
-
-    private fun ImageProxy.toBitmap(): Bitmap {
-        val yBuffer = planes[0].buffer // Y
-        val uBuffer = planes[1].buffer // U
-        val vBuffer = planes[2].buffer // V
-
-        val ySize = yBuffer.remaining()
-        val uSize = uBuffer.remaining()
-        val vSize = vBuffer.remaining()
-
-        val nv21 = ByteArray(ySize + uSize + vSize)
-
-        yBuffer.get(nv21, 0, ySize)
-        vBuffer.get(nv21, ySize, vSize)
-        uBuffer.get(nv21, ySize + vSize, uSize)
-
-        val yuvImage = YuvImage(nv21, ImageFormat.NV21, this.width, this.height, null)
-        val out = ByteArrayOutputStream()
-        yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 100, out)
-        val imageBytes = out.toByteArray()
-        return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
     }
 
     private fun updatePreviewFilter() {
