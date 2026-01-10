@@ -78,7 +78,11 @@ object VisionColorFilter {
         ColorMatrix(redOnlyMatrix)
     }
 
-    private val advancedDogMatrix by lazy {
+    /**
+     * Advanced dog vision matrix using spectral response calculations
+     * More sophisticated dichromatic simulation based on actual cone sensitivity curves
+     */
+    private val advancedDogMatrixArray: FloatArray by lazy {
         val matrix = FloatArray(20)
 
         // Dog cone spectral sensitivity peaks
@@ -115,10 +119,19 @@ object VisionColorFilter {
         matrix[18] = 1f // Preserve alpha
         matrix[19] = 0f // No offset
 
-        ColorMatrix(matrix)
+        matrix
     }
 
-    private val advancedCatMatrix by lazy {
+    fun getAdvancedDogMatrix(): ColorMatrix {
+        // Return a new ColorMatrix instance to avoid shared mutable state,
+        // but use the cached calculation for the array content.
+        return ColorMatrix(advancedDogMatrixArray)
+    }
+
+    /**
+     * Advanced cat vision matrix with enhanced spectral accuracy
+     */
+    private val advancedCatMatrixArray: FloatArray by lazy {
         val matrix = FloatArray(20)
 
         // Cat cone spectral sensitivity peaks
@@ -158,10 +171,17 @@ object VisionColorFilter {
         matrix[18] = 1f
         matrix[19] = 0f
 
-        ColorMatrix(matrix)
+        matrix
     }
 
-    private val advancedBirdMatrix by lazy {
+    fun getAdvancedCatMatrix(): ColorMatrix {
+        return ColorMatrix(advancedCatMatrixArray)
+    }
+
+    /**
+     * Advanced bird vision matrix simulating tetrachromatic perception
+     */
+    private val advancedBirdMatrixArray: FloatArray by lazy {
         val matrix = FloatArray(20)
 
         // Bird cone spectral sensitivity peaks
@@ -203,7 +223,11 @@ object VisionColorFilter {
         matrix[18] = 1f
         matrix[19] = 0f
 
-        ColorMatrix(matrix)
+        matrix
+    }
+
+    fun getAdvancedBirdMatrix(): ColorMatrix {
+        return ColorMatrix(advancedBirdMatrixArray)
     }
 
     /**
