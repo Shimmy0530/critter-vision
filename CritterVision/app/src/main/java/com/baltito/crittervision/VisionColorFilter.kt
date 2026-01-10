@@ -30,12 +30,13 @@ object VisionColorFilter {
     }
 
     private val catVisionMatrix by lazy {
-        // Scientifically accurate cat vision matrix based on protanopia-like color vision
-        // Cat spectral sensitivity peaks at ~450nm (blue) and ~555nm (green)
+        // Scientifically accurate cat vision matrix based on Clark & Clark (2016)
+        // Cat spectral sensitivity peaks at 460nm (blue) and 560nm (green), with a neutral point at 505nm
+        // Implements limited trichromatic ability with a weak middle cone at 500nm
         val catMatrix = floatArrayOf(
-            0.567f, 0.433f, 0.0f,     0.0f, 0.0f,  // Red-green confusion similar to protanopia
-            0.558f, 0.442f, 0.0f,     0.0f, 0.0f,  // Green mixed with red, reduced discrimination
-            0.0f,   0.242f, 0.758f,   0.0f, 0.0f,  // Blue channel with slight green influence
+            0.295f, 0.685f, 0.021f,   0.0f, 0.0f,  // L-cone (Red output): Driven by Human Green/Red
+            0.009f, 0.617f, 0.374f,   0.0f, 0.0f,  // M-cone (Green output): "Limited" middle channel
+            0.000f, 0.182f, 0.817f,   0.0f, 0.0f,  // S-cone (Blue output): Driven by Human Blue
             0.0f,   0.0f,   0.0f,     1.0f, 0.0f   // Alpha unchanged
         )
         ColorMatrix(catMatrix)
@@ -238,9 +239,9 @@ object VisionColorFilter {
     fun getDogVisionMatrix(): ColorMatrix = dogVisionMatrix
 
     /**
-     * Simulates Cat Vision - Limited dichromatic with peaks at 450nm (blue) and 555nm (green)
-     * Based on research showing cats have at least two cone types, possibly a third at 500nm
-     * Cats have difficulty distinguishing reds and greens, primarily see blues and yellows
+     * Simulates Cat Vision - Dichromatic with neutral point at 505nm
+     * Based on Clark & Clark (2016) research showing 460nm and 560nm peaks
+     * Note: Implements limited trichromatic ability for greater accuracy
      */
     fun getCatVisionMatrix(): ColorMatrix = catVisionMatrix
 
