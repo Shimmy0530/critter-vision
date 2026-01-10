@@ -16,12 +16,8 @@ object VisionColorFilter {
         DOG_ADVANCED, CAT_ADVANCED, BIRD_ADVANCED  // Advanced spectral simulation modes
     }
 
-    /**
-     * Simulates Dog Vision - Dichromatic with peaks at 430nm (blue-violet) and 555nm (yellow-green)
-     * Based on peer-reviewed research showing dogs have dichromatic vision similar to deuteranopia
-     * Dogs cannot distinguish between red and green colors, seeing them as variations of yellow and brown
-     */
-    fun getDogVisionMatrix(): ColorMatrix {
+    // Cached matrix instances to avoid reallocation and recalculation
+    private val dogVisionMatrix by lazy {
         // Scientifically accurate dog vision matrix based on dichromatic vision research
         // Dogs have two cone types with spectral sensitivity peaks at ~430nm and ~555nm
         val dogMatrix = floatArrayOf(
@@ -30,15 +26,10 @@ object VisionColorFilter {
             0.0f,   0.3f,   0.7f,     0.0f, 0.0f,  // Blue channel preserved with slight green influence
             0.0f,   0.0f,   0.0f,     1.0f, 0.0f   // Alpha unchanged
         )
-        return ColorMatrix(dogMatrix)
+        ColorMatrix(dogMatrix)
     }
 
-    /**
-     * Simulates Cat Vision - Limited dichromatic with peaks at 450nm (blue) and 555nm (green)
-     * Based on research showing cats have at least two cone types, possibly a third at 500nm
-     * Cats have difficulty distinguishing reds and greens, primarily see blues and yellows
-     */
-    fun getCatVisionMatrix(): ColorMatrix {
+    private val catVisionMatrix by lazy {
         // Scientifically accurate cat vision matrix based on protanopia-like color vision
         // Cat spectral sensitivity peaks at ~450nm (blue) and ~555nm (green)
         val catMatrix = floatArrayOf(
@@ -47,15 +38,10 @@ object VisionColorFilter {
             0.0f,   0.242f, 0.758f,   0.0f, 0.0f,  // Blue channel with slight green influence
             0.0f,   0.0f,   0.0f,     1.0f, 0.0f   // Alpha unchanged
         )
-        return ColorMatrix(catMatrix)
+        ColorMatrix(catMatrix)
     }
 
-    /**
-     * Simulates Bird Vision - Tetrachromatic with UV perception
-     * Based on research showing birds have four cone types: UV/Violet (355-426nm), Blue (~450nm), Green (~535nm), Red (~565nm)
-     * Birds have enhanced color discrimination and can see UV patterns invisible to humans
-     */
-    fun getBirdVisionMatrix(): ColorMatrix {
+    private val birdVisionMatrix by lazy {
         // Scientifically accurate bird vision matrix simulating tetrachromatic vision
         // Enhanced color saturation to approximate richer color perception within RGB limitations
         val birdMatrix = floatArrayOf(
@@ -64,14 +50,11 @@ object VisionColorFilter {
             0.0f,  -0.1f,   1.4f,     0.0f, 0.0f,  // Blue enhanced (UV compensation)
             0.0f,   0.0f,   0.0f,     1.0f, 0.0f   // Alpha unchanged
         )
-        return ColorMatrix(birdMatrix)
+        ColorMatrix(birdMatrix)
     }
 
-    /**
-     * Get identity matrix for human vision (no filter)
-     */
-    fun getHumanVisionMatrix(): ColorMatrix {
-        return ColorMatrix().apply {
+    private val humanVisionMatrix by lazy {
+        ColorMatrix().apply {
             // Identity matrix - no color transformation
             val identityMatrix = floatArrayOf(
                 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,  // Red channel unchanged
@@ -83,11 +66,7 @@ object VisionColorFilter {
         }
     }
 
-    /**
-     * TEST FILTER: Red only - converts green and blue to grayscale, keeps red channel
-     * This clearly demonstrates if color matrices are working properly
-     */
-    fun getRedOnlyTestMatrix(): ColorMatrix {
+    private val redOnlyTestMatrix by lazy {
         // Red only matrix: Green and blue channels become grayscale luminance
         // This should make everything red/gray with no green or blue colors
         val redOnlyMatrix = floatArrayOf(
@@ -96,20 +75,7 @@ object VisionColorFilter {
             0.3f, 0.3f, 0.3f, 0.0f, 0.0f,  // Blue becomes grayscale (R*0.3 + G*0.3 + B*0.3)
             0.0f, 0.0f, 0.0f, 1.0f, 0.0f   // Alpha unchanged
         )
-        return ColorMatrix(redOnlyMatrix)
-    }
-
-    fun getMatrix(type: FilterType): ColorMatrix? {
-        return when (type) {
-            FilterType.DOG -> getDogVisionMatrix()
-            FilterType.CAT -> getCatVisionMatrix()
-            FilterType.BIRD -> getBirdVisionMatrix()
-            FilterType.DOG_ADVANCED -> getAdvancedDogMatrix()
-            FilterType.CAT_ADVANCED -> getAdvancedCatMatrix()
-            FilterType.BIRD_ADVANCED -> getAdvancedBirdMatrix()
-            FilterType.RED_ONLY_TEST -> getRedOnlyTestMatrix()
-            FilterType.ORIGINAL -> getHumanVisionMatrix()
-        }
+        ColorMatrix(redOnlyMatrix)
     }
 
     /**
@@ -263,6 +229,67 @@ object VisionColorFilter {
     fun getAdvancedBirdMatrix(): ColorMatrix {
         return ColorMatrix(advancedBirdMatrixArray)
     }
+
+    /**
+     * Simulates Dog Vision - Dichromatic with peaks at 430nm (blue-violet) and 555nm (yellow-green)
+     * Based on peer-reviewed research showing dogs have dichromatic vision similar to deuteranopia
+     * Dogs cannot distinguish between red and green colors, seeing them as variations of yellow and brown
+     */
+    fun getDogVisionMatrix(): ColorMatrix = dogVisionMatrix
+
+    /**
+     * Simulates Cat Vision - Limited dichromatic with peaks at 450nm (blue) and 555nm (green)
+     * Based on research showing cats have at least two cone types, possibly a third at 500nm
+     * Cats have difficulty distinguishing reds and greens, primarily see blues and yellows
+     */
+    fun getCatVisionMatrix(): ColorMatrix = catVisionMatrix
+
+    /**
+     * Simulates Bird Vision - Tetrachromatic with UV perception
+     * Based on research showing birds have four cone types: UV/Violet (355-426nm), Blue (~450nm), Green (~535nm), Red (~565nm)
+     * Birds have enhanced color discrimination and can see UV patterns invisible to humans
+     */
+    fun getBirdVisionMatrix(): ColorMatrix = birdVisionMatrix
+
+    /**
+     * Get identity matrix for human vision (no filter)
+     */
+    fun getHumanVisionMatrix(): ColorMatrix = humanVisionMatrix
+
+    /**
+     * TEST FILTER: Red only - converts green and blue to grayscale, keeps red channel
+     * This clearly demonstrates if color matrices are working properly
+     */
+    fun getRedOnlyTestMatrix(): ColorMatrix = redOnlyTestMatrix
+
+    fun getMatrix(type: FilterType): ColorMatrix? {
+        return when (type) {
+            FilterType.DOG -> getDogVisionMatrix()
+            FilterType.CAT -> getCatVisionMatrix()
+            FilterType.BIRD -> getBirdVisionMatrix()
+            FilterType.DOG_ADVANCED -> getAdvancedDogMatrix()
+            FilterType.CAT_ADVANCED -> getAdvancedCatMatrix()
+            FilterType.BIRD_ADVANCED -> getAdvancedBirdMatrix()
+            FilterType.RED_ONLY_TEST -> getRedOnlyTestMatrix()
+            FilterType.ORIGINAL -> getHumanVisionMatrix()
+        }
+    }
+
+    /**
+     * Advanced dog vision matrix using spectral response calculations
+     * More sophisticated dichromatic simulation based on actual cone sensitivity curves
+     */
+    fun getAdvancedDogMatrix(): ColorMatrix = advancedDogMatrix
+
+    /**
+     * Advanced cat vision matrix with enhanced spectral accuracy
+     */
+    fun getAdvancedCatMatrix(): ColorMatrix = advancedCatMatrix
+
+    /**
+     * Advanced bird vision matrix simulating tetrachromatic perception
+     */
+    fun getAdvancedBirdMatrix(): ColorMatrix = advancedBirdMatrix
     
     /**
      * Calculate cone spectral response using Gaussian approximation
