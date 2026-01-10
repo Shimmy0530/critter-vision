@@ -6,14 +6,22 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <androidx.camera.view.PreviewView
-        android:id="@+id/previewView"
+    <FrameLayout
         android:layout_width="0dp"
         android:layout_height="0dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toTopOf="@+id/controlsPanel"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:id="@+id/processedImageView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:background="#000000" />
+
+    </FrameLayout>
 
     <LinearLayout
         android:id="@+id/controlsPanel"
@@ -33,6 +41,67 @@
             android:text="@string/active_filter_initial_text"
             android:textSize="18sp"
             android:paddingBottom="8dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <Button
+                android:id="@+id/processingModeToggle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Mode: SIMPLE"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_marginEnd="4dp"
+                android:backgroundTint="#E8F5E8"/>
+
+            <Button
+                android:id="@+id/advancedFilterToggle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Standard Filters"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_marginStart="4dp"
+                android:backgroundTint="#F5F5E8"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/filterIntensityPanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Intensity:"
+                android:layout_gravity="center_vertical"
+                android:paddingEnd="8dp"/>
+
+            <SeekBar
+                android:id="@+id/filterIntensitySeekBar"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:max="100"
+                android:progress="100"/>
+
+            <TextView
+                android:id="@+id/intensityValueText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="100%"
+                android:layout_gravity="center_vertical"
+                android:paddingStart="8dp"
+                android:minWidth="40dp"
+                android:textAlignment="center"/>
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -76,6 +145,21 @@
                 android:text="@string/original_vision"
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_marginStart="4dp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <Button
+                android:id="@+id/redOnlyTestButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🔴 RED ONLY TEST"
+                style="?android:attr/buttonBarButtonStyle"
+                android:backgroundTint="#FFB3B3"/>
         </LinearLayout>
     </LinearLayout>
 

@@ -39,12 +39,64 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
                     "varying vec2 vTexCoord;\n" +
                     "uniform samplerExternalOES sTexture;\n" +
                     "uniform mat4 uColorMatrix;\n" +
-                    "uniform vec4 uColorOffset;\n" +
                     "void main() {\n" +
                     "  vec4 texColor = texture2D(sTexture, vTexCoord);\n" +
-                    "  vec4 transformedColor = uColorMatrix * texColor + uColorOffset;\n" +
+                    "  vec4 transformedColor = uColorMatrix * texColor;\n" +
                     "  gl_FragColor = clamp(transformedColor, 0.0, 1.0);\n" +
                     "}\n"
+                    
+        // Advanced animal-specific shaders with spectral simulation
+        private const val DOG_FRAGMENT_SHADER =
+            "#extension GL_OES_EGL_image_external : require\n" +
+            "precision mediump float;\n" +
+            "varying vec2 vTexCoord;\n" +
+            "uniform samplerExternalOES sTexture;\n" +
+            "void main() {\n" +
+            "  vec4 color = texture2D(sTexture, vTexCoord);\n" +
+            "  // Simulate dichromatic vision with S-cone (430nm) and L-cone (555nm) responses\n" +
+            "  float sResponse = color.b * 0.9 + color.g * 0.1; // Blue-violet sensitivity\n" +
+            "  float lResponse = color.r * 0.7 + color.g * 0.8; // Yellow-green sensitivity\n" +
+            "  // Red-green confusion: both map to yellow-brown spectrum\n" +
+            "  float yellowBrown = lResponse * 0.85;\n" +
+            "  gl_FragColor = vec4(yellowBrown, yellowBrown * 0.8, sResponse, color.a);\n" +
+            "}\n"
+            
+        private const val CAT_FRAGMENT_SHADER =
+            "#extension GL_OES_EGL_image_external : require\n" +
+            "precision mediump float;\n" +
+            "varying vec2 vTexCoord;\n" +
+            "uniform samplerExternalOES sTexture;\n" +
+            "void main() {\n" +
+            "  vec4 color = texture2D(sTexture, vTexCoord);\n" +
+            "  // Simulate limited dichromatic with possible M-cone at 500nm\n" +
+            "  float sResponse = color.b * 0.85 + color.g * 0.15; // 450nm blue sensitivity\n" +
+            "  float mResponse = color.g * 0.6 + color.b * 0.2;   // 500nm possible middle cone\n" +
+            "  float lResponse = color.r * 0.6 + color.g * 0.7;   // 555nm green sensitivity\n" +
+            "  // Enhanced blue perception, muted reds\n" +
+            "  vec3 catVision = vec3(lResponse * 0.7, mResponse, sResponse * 1.1);\n" +
+            "  gl_FragColor = vec4(clamp(catVision, 0.0, 1.0), color.a);\n" +
+            "}\n"
+            
+        private const val BIRD_FRAGMENT_SHADER =
+            "#extension GL_OES_EGL_image_external : require\n" +
+            "precision mediump float;\n" +
+            "varying vec2 vTexCoord;\n" +
+            "uniform samplerExternalOES sTexture;\n" +
+            "void main() {\n" +
+            "  vec4 color = texture2D(sTexture, vTexCoord);\n" +
+            "  // Simulate tetrachromatic vision with UV contribution\n" +
+            "  float uvResponse = (color.r + color.g + color.b) * 0.15; // UV simulation\n" +
+            "  float sResponse = color.b * 1.3;  // 450nm blue enhanced\n" +
+            "  float mResponse = color.g * 1.4;  // 535nm green enhanced\n" +
+            "  float lResponse = color.r * 1.2;  // 565nm red enhanced\n" +
+            "  // Enhanced color discrimination with UV patterns\n" +
+            "  vec3 birdVision = vec3(\n" +
+            "    lResponse + uvResponse * 0.1,\n" +
+            "    mResponse + uvResponse * 0.1,\n" +
+            "    sResponse + uvResponse * 0.2\n" +
+            "  );\n" +
+            "  gl_FragColor = vec4(clamp(birdVision, 0.0, 1.0), color.a);\n" +
+            "}\n"
     }
 
     private val egl: EGL10 = EGLContext.getEGL() as EGL10
@@ -56,15 +108,14 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
     private var positionHandle: Int = 0
     private var texCoordHandle: Int = 0
     private var colorMatrixHandle: Int = 0
-    private var colorOffsetHandle: Int = 0
     private var oesTextureId: Int = 0
 
     private val vertexBuffer: FloatBuffer
     private val texCoordBuffer: FloatBuffer
 
-    private var currentColorMatrix: ColorMatrix? = null // FIXED: Changed from ColorMatrixColorFilter to ColorMatrix
+    private var currentColorMatrix: ColorMatrix? = null
     private val glMatrix = FloatArray(16)
-    private val glOffset = FloatArray(4)
+    private var currentShaderType: VisionColorFilter.FilterType = VisionColorFilter.FilterType.ORIGINAL
 
     @Volatile private var isReleased = false
 
@@ -93,21 +144,38 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
         setFilter(null)
     }
 
-    fun setFilter(colorMatrix: ColorMatrix?) { // FIXED: Changed parameter from ColorMatrixColorFilter to ColorMatrix
+    fun setFilter(colorMatrix: ColorMatrix?) {
         currentColorMatrix = colorMatrix
         if (colorMatrix != null) {
-            val matrixSrc = colorMatrix.array // FIXED: Direct access to array property
-            glMatrix[0]=matrixSrc[0];  glMatrix[4]=matrixSrc[1];  glMatrix[8]=matrixSrc[2];   glMatrix[12]=matrixSrc[3];
-            glMatrix[1]=matrixSrc[5];  glMatrix[5]=matrixSrc[6];  glMatrix[9]=matrixSrc[7];   glMatrix[13]=matrixSrc[8];
-            glMatrix[2]=matrixSrc[10]; glMatrix[6]=matrixSrc[11]; glMatrix[10]=matrixSrc[12]; glMatrix[14]=matrixSrc[13];
-            glMatrix[3]=matrixSrc[15]; glMatrix[7]=matrixSrc[16]; glMatrix[11]=matrixSrc[17]; glMatrix[15]=matrixSrc[18];
-            glOffset[0] = matrixSrc[4] / 255.0f;
-            glOffset[1] = matrixSrc[9] / 255.0f;
-            glOffset[2] = matrixSrc[14] / 255.0f;
-            glOffset[3] = matrixSrc[19] / 255.0f;
+            val matrixSrc = colorMatrix.array
+            // Convert 5x4 ColorMatrix to 4x4 OpenGL matrix
+            // ColorMatrix format: [R,G,B,A,Offset] for each row
+            glMatrix[0] = matrixSrc[0]  // R->R
+            glMatrix[1] = matrixSrc[1]  // G->R  
+            glMatrix[2] = matrixSrc[2]  // B->R
+            glMatrix[3] = matrixSrc[3]  // A->R
+            
+            glMatrix[4] = matrixSrc[5]  // R->G
+            glMatrix[5] = matrixSrc[6]  // G->G
+            glMatrix[6] = matrixSrc[7]  // B->G
+            glMatrix[7] = matrixSrc[8]  // A->G
+            
+            glMatrix[8] = matrixSrc[10] // R->B
+            glMatrix[9] = matrixSrc[11] // G->B
+            glMatrix[10] = matrixSrc[12] // B->B
+            glMatrix[11] = matrixSrc[13] // A->B
+            
+            glMatrix[12] = matrixSrc[15] // R->A
+            glMatrix[13] = matrixSrc[16] // G->A
+            glMatrix[14] = matrixSrc[17] // B->A
+            glMatrix[15] = matrixSrc[18] // A->A
         } else {
-            glMatrix.fill(0f); glOffset.fill(0f)
-            glMatrix[0]=1f; glMatrix[5]=1f; glMatrix[10]=1f; glMatrix[15]=1f;
+            // Identity matrix
+            glMatrix.fill(0f)
+            glMatrix[0] = 1f
+            glMatrix[5] = 1f
+            glMatrix[10] = 1f
+            glMatrix[15] = 1f
         }
 
         // If EGL context is initialized, apply the filter on GL thread
@@ -189,7 +257,7 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
     }
 
     override fun onOutputSurface(surfaceOutput: SurfaceOutput) {
-        Log.d(TAG, "onOutputSurface provided. SurfaceOutput: $surfaceOutput") // FIXED: Updated log message
+        Log.d(TAG, "onOutputSurface provided. SurfaceOutput: $surfaceOutput")
         if (isReleased) {
             Log.w(TAG, "onOutputSurface: Processor already released.")
             return
@@ -201,14 +269,14 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
                 this.surfaceOutput?.close()
                 this.surfaceOutput = surfaceOutput
 
-                val outputSurface = surfaceOutput.getSurface(glExecutor) { event -> // FIXED: Use getSurface correctly
+                val outputSurface = surfaceOutput.getSurface(glExecutor) { event ->
                     Log.d(TAG, "SurfaceOutput event: ${event.eventCode}")
                     if (event.eventCode == SurfaceOutput.Event.EVENT_REQUEST_CLOSE) {
                         Log.w(TAG, "Output surface close requested by provider.")
                     }
                 }
 
-                initEGL(outputSurface) // FIXED: Pass the Surface directly
+                initEGL(outputSurface)
                 setFilter(currentColorMatrix)
 
                 Log.d(TAG, "EGL initialized for output surface.")
@@ -282,7 +350,6 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
             positionHandle = GLES20.glGetAttribLocation(programHandle, "aPosition")
             texCoordHandle = GLES20.glGetAttribLocation(programHandle, "aTexCoord")
             colorMatrixHandle = GLES20.glGetUniformLocation(programHandle, "uColorMatrix")
-            colorOffsetHandle = GLES20.glGetUniformLocation(programHandle, "uColorOffset")
             Log.d(TAG, "GL Program Initialized. Program Handle: $programHandle")
         }
     }
@@ -304,7 +371,6 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
     private fun applyShaderUniforms() {
         GLES20.glUseProgram(programHandle)
         GLES20.glUniformMatrix4fv(colorMatrixHandle, 1, false, glMatrix, 0)
-        GLES20.glUniform4fv(colorOffsetHandle, 1, glOffset, 0)
         GLES20.glUniform1i(GLES20.glGetUniformLocation(programHandle, "sTexture"), 0)
     }
 
@@ -312,6 +378,7 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
         if (isReleased) return
 
         GLES20.glViewport(0, 0, resolution.width, resolution.height)
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
 
         GLES20.glUseProgram(programHandle)
         applyShaderUniforms()
@@ -370,6 +437,92 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
                 oesTextureId = 0
             }
             Log.d(TAG, "All EGL and GL resources released.")
+        }
+    }
+    
+    /**
+     * Set animal-specific vision filter using advanced GLSL shaders
+     * @param filterType The type of animal vision to simulate
+     */
+    fun setAnimalVisionFilter(filterType: VisionColorFilter.FilterType) {
+        currentShaderType = filterType
+        val shaderCode = when (filterType) {
+            VisionColorFilter.FilterType.DOG_ADVANCED -> DOG_FRAGMENT_SHADER
+            VisionColorFilter.FilterType.CAT_ADVANCED -> CAT_FRAGMENT_SHADER  
+            VisionColorFilter.FilterType.BIRD_ADVANCED -> BIRD_FRAGMENT_SHADER
+            else -> FRAGMENT_SHADER_CODE // Default matrix-based for other types
+        }
+        
+        Log.d(TAG, "Setting animal vision filter: $filterType")
+        
+        // Recompile shader with animal-specific code
+        glExecutor.execute {
+            if (isReleased) return@execute
+            try {
+                if (egl.eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext)) {
+                    recompileShader(shaderCode)
+                } else {
+                    Log.e(TAG, "setAnimalVisionFilter: eglMakeCurrent failed: ${egl.eglGetError()}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error setting animal vision filter", e)
+            }
+        }
+    }
+    
+    /**
+     * Recompile shader program with new fragment shader code
+     * @param fragmentShaderCode New fragment shader source code
+     */
+    private fun recompileShader(fragmentShaderCode: String) {
+        if (programHandle != 0) {
+            GLES20.glDeleteProgram(programHandle)
+            programHandle = 0
+        }
+        
+        try {
+            programHandle = GLES20.glCreateProgram().also {
+                GLES20.glAttachShader(it, loadShader(GLES20.GL_VERTEX_SHADER, VERTEX_SHADER_CODE))
+                GLES20.glAttachShader(it, loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentShaderCode))
+                GLES20.glLinkProgram(it)
+                val linkStatus = IntArray(1)
+                GLES20.glGetProgramiv(it, GLES20.GL_LINK_STATUS, linkStatus, 0)
+                if (linkStatus[0] == 0) {
+                    val info = GLES20.glGetProgramInfoLog(it)
+                    GLES20.glDeleteProgram(it)
+                    throw RuntimeException("Could not link program: $info")
+                }
+            }
+            positionHandle = GLES20.glGetAttribLocation(programHandle, "aPosition")
+            texCoordHandle = GLES20.glGetAttribLocation(programHandle, "aTexCoord")
+            colorMatrixHandle = GLES20.glGetUniformLocation(programHandle, "uColorMatrix")
+            
+            Log.d(TAG, "Shader recompiled successfully for $currentShaderType")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to recompile shader", e)
+            throw e
+        }
+    }
+    
+    /**
+     * Enhanced setFilter method that supports both matrix and shader-based filtering
+     */
+    fun setFilterWithType(colorMatrix: ColorMatrix?, filterType: VisionColorFilter.FilterType) {
+        currentColorMatrix = colorMatrix
+        currentShaderType = filterType
+        
+        // Use advanced shaders for advanced filter types
+        when (filterType) {
+            VisionColorFilter.FilterType.DOG_ADVANCED,
+            VisionColorFilter.FilterType.CAT_ADVANCED,
+            VisionColorFilter.FilterType.BIRD_ADVANCED -> {
+                setAnimalVisionFilter(filterType)
+                return
+            }
+            else -> {
+                // Use regular matrix-based filtering
+                setFilter(colorMatrix)
+            }
         }
     }
 }
