@@ -108,6 +108,7 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
     private var positionHandle: Int = 0
     private var texCoordHandle: Int = 0
     private var colorMatrixHandle: Int = 0
+    private var textureHandle: Int = 0
     private var oesTextureId: Int = 0
 
     private val vertexBuffer: FloatBuffer
@@ -350,6 +351,7 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
             positionHandle = GLES20.glGetAttribLocation(programHandle, "aPosition")
             texCoordHandle = GLES20.glGetAttribLocation(programHandle, "aTexCoord")
             colorMatrixHandle = GLES20.glGetUniformLocation(programHandle, "uColorMatrix")
+            textureHandle = GLES20.glGetUniformLocation(programHandle, "sTexture")
             Log.d(TAG, "GL Program Initialized. Program Handle: $programHandle")
         }
     }
@@ -371,7 +373,8 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
     private fun applyShaderUniforms() {
         GLES20.glUseProgram(programHandle)
         GLES20.glUniformMatrix4fv(colorMatrixHandle, 1, false, glMatrix, 0)
-        GLES20.glUniform1i(GLES20.glGetUniformLocation(programHandle, "sTexture"), 0)
+        // Optimization: Use cached handle instead of looking it up every frame
+        GLES20.glUniform1i(textureHandle, 0)
     }
 
     private fun drawFrame(resolution: Size) {
@@ -496,6 +499,7 @@ class ColorFilterSurfaceProcessor(private val glExecutor: Executor) : SurfacePro
             positionHandle = GLES20.glGetAttribLocation(programHandle, "aPosition")
             texCoordHandle = GLES20.glGetAttribLocation(programHandle, "aTexCoord")
             colorMatrixHandle = GLES20.glGetUniformLocation(programHandle, "uColorMatrix")
+            textureHandle = GLES20.glGetUniformLocation(programHandle, "sTexture")
             
             Log.d(TAG, "Shader recompiled successfully for $currentShaderType")
         } catch (e: Exception) {
