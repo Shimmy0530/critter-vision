@@ -43,6 +43,7 @@ class MainActivity : AppCompatActivity() {
     private var cameraProvider: ProcessCameraProvider? = null
     private lateinit var previewView: PreviewView
 
+    private var cachedColorFilter: ColorFilter? = null
     private var currentFilter: VisionColorFilter.FilterType = VisionColorFilter.FilterType.ORIGINAL
     private var processingMode: ProcessingMode = ProcessingMode.SIMPLE
     private var useAdvancedFilters = false
@@ -76,6 +77,8 @@ class MainActivity : AppCompatActivity() {
         // Make buttons more prominent so they're visible through filters
         makeButtonsProminent(dogVisionButton, catVisionButton, birdVisionButton, originalVisionButton, redOnlyTestButton)
 
+        // Initialize cached filter
+        updateCachedColorFilter()
         updateActiveFilterTextView()
 
         // Setup filter buttons
@@ -358,6 +361,7 @@ class MainActivity : AppCompatActivity() {
         when (processingMode) {
             ProcessingMode.SIMPLE -> {
                 // Current ColorMatrix approach with intensity support
+                updateCachedColorFilter()
                 applyColorMatrixToImageView()
             }
             ProcessingMode.ADVANCED -> {
@@ -369,22 +373,24 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "Filter changed to: $currentFilter (mode: $processingMode, intensity: $filterIntensity)")
     }
 
-    private fun applyColorMatrixToImageView() {
+    private fun updateCachedColorFilter() {
         val colorMatrix = VisionColorFilter.getMatrix(currentFilter)
 
-        if (colorMatrix != null) {
+        cachedColorFilter = if (colorMatrix != null) {
             // Apply intensity scaling to the color matrix
             if (filterIntensity < 1.0f) {
                 val scaledMatrix = scaleColorMatrixIntensity(colorMatrix, filterIntensity)
-                val filter = ColorMatrixColorFilter(scaledMatrix)
-                processedImageView.colorFilter = filter
+                ColorMatrixColorFilter(scaledMatrix)
             } else {
-                val filter = ColorMatrixColorFilter(colorMatrix)
-                processedImageView.colorFilter = filter
+                ColorMatrixColorFilter(colorMatrix)
             }
         } else {
-            processedImageView.colorFilter = null
+            null
         }
+    }
+
+    private fun applyColorMatrixToImageView() {
+        processedImageView.colorFilter = cachedColorFilter
     }
     
     /**
