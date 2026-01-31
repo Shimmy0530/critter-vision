@@ -155,11 +155,34 @@
 
             <Button
                 android:id="@+id/redOnlyTestButton"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="🔴 RED ONLY TEST"
+                android:layout_weight="1"
+                android:text="🔴 RED TEST"
                 style="?android:attr/buttonBarButtonStyle"
+                android:layout_marginEnd="4dp"
                 android:backgroundTint="#FFB3B3"/>
+
+            <Button
+                android:id="@+id/greenOnlyTestButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="🟢 GREEN TEST"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"
+                android:backgroundTint="#B3FFB3"/>
+
+            <Button
+                android:id="@+id/blueOnlyTestButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="🔵 BLUE TEST"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_marginStart="4dp"
+                android:backgroundTint="#B3B3FF"/>
         </LinearLayout>
     </LinearLayout>
 
