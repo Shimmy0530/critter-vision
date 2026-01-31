@@ -42,32 +42,14 @@
             android:textSize="18sp"
             android:paddingBottom="8dp"/>
 
-        <LinearLayout
+        <Button
+            android:id="@+id/advancedFilterToggle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
-
-            <Button
-                android:id="@+id/processingModeToggle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Mode: SIMPLE"
-                style="?android:attr/buttonBarButtonStyle"
-                android:layout_marginEnd="4dp"
-                android:backgroundTint="#E8F5E8"/>
-
-            <Button
-                android:id="@+id/advancedFilterToggle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Standard Filters"
-                style="?android:attr/buttonBarButtonStyle"
-                android:layout_marginStart="4dp"
-                android:backgroundTint="#F5F5E8"/>
-        </LinearLayout>
+            android:text="Standard Filters"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_marginBottom="8dp"
+            android:backgroundTint="#F5F5E8"/>
 
         <LinearLayout
             android:id="@+id/filterIntensityPanel"
