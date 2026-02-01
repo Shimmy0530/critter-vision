@@ -1,10 +1,8 @@
 package com.baltito.crittervision
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.*
-import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -15,12 +13,8 @@ import android.widget.SeekBar
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
 import android.widget.ImageView
 import java.nio.ByteBuffer
-import java.util.concurrent.TimeUnit
-import java.util.Timer
-import java.util.TimerTask
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.common.util.concurrent.ListenableFuture
@@ -39,13 +33,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var activeFilterTextView: TextView
     private var imageAnalyzer: ImageAnalysis? = null
-    private var surfaceProcessor: ColorFilterSurfaceProcessor? = null
     private var cameraProvider: ProcessCameraProvider? = null
-    private lateinit var previewView: PreviewView
 
     private var cachedColorFilter: ColorFilter? = null
     private var currentFilter: VisionColorFilter.FilterType = VisionColorFilter.FilterType.ORIGINAL
-    private var processingMode: ProcessingMode = ProcessingMode.SIMPLE
     private var useAdvancedFilters = false
     private var filterIntensity = 1.0f
 
@@ -56,11 +47,6 @@ class MainActivity : AppCompatActivity() {
         processedImageView = findViewById(R.id.processedImageView)
         activeFilterTextView = findViewById(R.id.activeFilterTextView)
         cameraExecutor = Executors.newSingleThreadExecutor()
-        
-        // Detect device capabilities and set recommended mode
-        processingMode = DeviceCapabilities.getRecommendedMode(this)
-        val deviceInfo = DeviceCapabilities.getDeviceInfo(this)
-        Log.d(TAG, "Device capabilities: $deviceInfo")
 
         // Setup buttons
         val dogVisionButton: Button = findViewById(R.id.dogVisionButton)
@@ -68,16 +54,12 @@ class MainActivity : AppCompatActivity() {
         val birdVisionButton: Button = findViewById(R.id.birdVisionButton)
         val originalVisionButton: Button = findViewById(R.id.originalVisionButton)
         val redOnlyTestButton: Button = findViewById(R.id.redOnlyTestButton)
-        val greenOnlyTestButton: Button = findViewById(R.id.greenOnlyTestButton)
-        val blueOnlyTestButton: Button = findViewById(R.id.blueOnlyTestButton)
-        val processingModeToggle: Button = findViewById(R.id.processingModeToggle)
         val advancedFilterToggle: Button = findViewById(R.id.advancedFilterToggle)
         val filterIntensitySeekBar: SeekBar = findViewById(R.id.filterIntensitySeekBar)
         val intensityValueText: TextView = findViewById(R.id.intensityValueText)
-        // filterIntensityPanel is accessed in toggleAdvancedFilters method
 
         // Make buttons more prominent so they're visible through filters
-        makeButtonsProminent(dogVisionButton, catVisionButton, birdVisionButton, originalVisionButton, redOnlyTestButton, greenOnlyTestButton, blueOnlyTestButton)
+        makeButtonsProminent(dogVisionButton, catVisionButton, birdVisionButton, originalVisionButton, redOnlyTestButton)
 
         // Initialize cached filter
         updateCachedColorFilter()
@@ -109,20 +91,6 @@ class MainActivity : AppCompatActivity() {
             updatePreviewFilter()
             updateActiveFilterTextView()
         }
-        greenOnlyTestButton.setOnClickListener {
-            currentFilter = VisionColorFilter.FilterType.GREEN_ONLY_TEST
-            updatePreviewFilter()
-            updateActiveFilterTextView()
-        }
-        blueOnlyTestButton.setOnClickListener {
-            currentFilter = VisionColorFilter.FilterType.BLUE_ONLY_TEST
-            updatePreviewFilter()
-            updateActiveFilterTextView()
-        }
-        
-        // Setup processing mode toggle
-        processingModeToggle.text = "Mode: ${processingMode.name}"
-        processingModeToggle.setOnClickListener { toggleProcessingMode() }
         
         // Setup advanced filter toggle
         advancedFilterToggle.setOnClickListener { toggleAdvancedFilters() }
@@ -143,33 +111,20 @@ class MainActivity : AppCompatActivity() {
         updateUI()
 
         if (allPermissionsGranted()) {
-            setupCamera()
+            startCamera()
         } else {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
         }
     }
-    
-    private fun toggleProcessingMode() {
-        processingMode = if (processingMode == ProcessingMode.SIMPLE) {
-            ProcessingMode.ADVANCED
-        } else {
-            ProcessingMode.SIMPLE
-        }
-        
-        findViewById<Button>(R.id.processingModeToggle).text = "Mode: ${processingMode.name}"
-        Log.d(TAG, "Switched to processing mode: $processingMode")
-        restartCameraWithNewMode()
-    }
-    
+
     private fun toggleAdvancedFilters() {
         useAdvancedFilters = !useAdvancedFilters
         val advancedFilterToggle = findViewById<Button>(R.id.advancedFilterToggle)
         val filterIntensityPanel = findViewById<View>(R.id.filterIntensityPanel)
-        
+
         if (useAdvancedFilters) {
             advancedFilterToggle.text = "Advanced Filters"
             filterIntensityPanel.visibility = View.VISIBLE
-            // Switch current filter to advanced version
             currentFilter = when (currentFilter) {
                 VisionColorFilter.FilterType.DOG -> VisionColorFilter.FilterType.DOG_ADVANCED
                 VisionColorFilter.FilterType.CAT -> VisionColorFilter.FilterType.CAT_ADVANCED
@@ -179,7 +134,6 @@ class MainActivity : AppCompatActivity() {
         } else {
             advancedFilterToggle.text = "Standard Filters"
             filterIntensityPanel.visibility = View.GONE
-            // Switch current filter to standard version
             currentFilter = when (currentFilter) {
                 VisionColorFilter.FilterType.DOG_ADVANCED -> VisionColorFilter.FilterType.DOG
                 VisionColorFilter.FilterType.CAT_ADVANCED -> VisionColorFilter.FilterType.CAT
@@ -187,84 +141,24 @@ class MainActivity : AppCompatActivity() {
                 else -> currentFilter
             }
         }
-        
+
         updatePreviewFilter()
         updateActiveFilterTextView()
         Log.d(TAG, "Advanced filters: $useAdvancedFilters")
     }
-    
+
     private fun updateUI() {
         updateActiveFilterTextView()
-        val processingModeToggle = findViewById<Button>(R.id.processingModeToggle)
-        processingModeToggle.text = "Mode: ${processingMode.name}"
     }
-    
-    private fun setupCamera() {
-        when (processingMode) {
-            ProcessingMode.SIMPLE -> setupSimpleCamera()
-            ProcessingMode.ADVANCED -> setupAdvancedCamera()
-        }
-    }
-    
-    private fun setupSimpleCamera() {
-        Log.d(TAG, "Setting up simple camera mode with ImageAnalysis")
-        startCamera() // Your existing method
-    }
-    
-    private fun setupAdvancedCamera() {
-        Log.d(TAG, "Setting up advanced camera mode with SurfaceProcessor")
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
-        cameraProviderFuture.addListener({
-            try {
-                cameraProvider = cameraProviderFuture.get()
-                
-                // Create SurfaceProcessor for advanced filtering
-                val glExecutor = Executors.newSingleThreadExecutor()
-                surfaceProcessor = ColorFilterSurfaceProcessor(glExecutor)
-                
-                // Set initial filter
-                val matrix = VisionColorFilter.getMatrix(currentFilter)
-                surfaceProcessor?.setFilter(matrix)
-                
-                // Create Preview with SurfaceProcessor
-                val preview = Preview.Builder()
-                    .build()
-                    
-                // Instead of using SurfaceProvider, we'll continue with ImageAnalysis for now
-                // as full SurfaceProcessor integration requires more extensive changes
-                // This provides the foundation for future advanced features
-                
-                // For now, fall back to simple mode but log the attempt
-                Log.d(TAG, "Advanced mode prepared, falling back to simple mode for compatibility")
-                setupSimpleCamera()
-                
-            } catch (e: Exception) {
-                Log.e(TAG, "Advanced camera setup failed, falling back to simple mode", e)
-                processingMode = ProcessingMode.SIMPLE
-                setupSimpleCamera()
-            }
-        }, ContextCompat.getMainExecutor(this))
-    }
-    
-    private fun restartCameraWithNewMode() {
-        cameraProvider?.unbindAll()
-        surfaceProcessor?.release()
-        surfaceProcessor = null
-        setupCamera()
-    }
-
-
 
     private fun makeButtonsProminent(vararg buttons: Button) {
         buttons.forEach { button ->
-            // Make buttons stand out with white background and bold text
             button.setBackgroundColor(Color.WHITE)
             button.setTextColor(Color.BLACK)
             button.elevation = 8f
             button.alpha = 0.9f
         }
 
-        // Make the text view more prominent too
         activeFilterTextView.setBackgroundColor(Color.argb(200, 255, 255, 255))
         activeFilterTextView.setTextColor(Color.BLACK)
         activeFilterTextView.setPadding(16, 8, 16, 8)
@@ -280,7 +174,7 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (allPermissionsGranted()) {
-                setupCamera()
+                startCamera()
             } else {
                 Toast.makeText(this, "Permissions not granted by the user.", Toast.LENGTH_SHORT).show()
             }
@@ -364,25 +258,15 @@ class MainActivity : AppCompatActivity() {
                 processedImageView.setImageBitmap(rotatedBitmap)
                 applyColorMatrixToImageView()
             }
-            
+
             image.close()
         }
     }
 
     private fun updatePreviewFilter() {
-        when (processingMode) {
-            ProcessingMode.SIMPLE -> {
-                // Current ColorMatrix approach with intensity support
-                updateCachedColorFilter()
-                applyColorMatrixToImageView()
-            }
-            ProcessingMode.ADVANCED -> {
-                // Update SurfaceProcessor filter (when fully implemented)
-                val matrix = VisionColorFilter.getMatrix(currentFilter)
-                surfaceProcessor?.setFilter(matrix)
-            }
-        }
-        Log.d(TAG, "Filter changed to: $currentFilter (mode: $processingMode, intensity: $filterIntensity)")
+        updateCachedColorFilter()
+        applyColorMatrixToImageView()
+        Log.d(TAG, "Filter changed to: $currentFilter (intensity: $filterIntensity)")
     }
 
     private fun updateCachedColorFilter() {
@@ -439,8 +323,6 @@ class MainActivity : AppCompatActivity() {
             VisionColorFilter.FilterType.CAT_ADVANCED -> "🐱 Cat Vision (Advanced)"
             VisionColorFilter.FilterType.BIRD_ADVANCED -> "🦅 Bird Vision (Advanced)"
             VisionColorFilter.FilterType.RED_ONLY_TEST -> "🔴 RED ONLY TEST"
-            VisionColorFilter.FilterType.GREEN_ONLY_TEST -> "🟢 GREEN ONLY TEST"
-            VisionColorFilter.FilterType.BLUE_ONLY_TEST -> "🔵 BLUE ONLY TEST"
             VisionColorFilter.FilterType.ORIGINAL -> "👁️ Human Vision"
         }
         val intensityText = if (filterIntensity < 1.0f) " (${(filterIntensity * 100).toInt()}%)" else ""
@@ -451,7 +333,6 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
-        surfaceProcessor?.release()
     }
 
 

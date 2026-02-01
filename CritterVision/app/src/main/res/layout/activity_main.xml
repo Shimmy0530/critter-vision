@@ -2,6 +2,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mainConstraintLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MainActivity">
@@ -40,34 +41,16 @@
             android:textAlignment="center"
             android:text="@string/active_filter_initial_text"
             android:textSize="18sp"
-            android:paddingBottom="8dp"/>
+            android:padding="8dp"/>
 
-        <LinearLayout
+        <Button
+            android:id="@+id/advancedFilterToggle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
-
-            <Button
-                android:id="@+id/processingModeToggle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Mode: SIMPLE"
-                style="?android:attr/buttonBarButtonStyle"
-                android:layout_marginEnd="4dp"
-                android:backgroundTint="#E8F5E8"/>
-
-            <Button
-                android:id="@+id/advancedFilterToggle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Standard Filters"
-                style="?android:attr/buttonBarButtonStyle"
-                android:layout_marginStart="4dp"
-                android:backgroundTint="#F5F5E8"/>
-        </LinearLayout>
+            android:text="Standard Filters"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_marginBottom="8dp"
+            android:backgroundTint="#F5F5E8"/>
 
         <LinearLayout
             android:id="@+id/filterIntensityPanel"
@@ -124,7 +107,6 @@
                 android:layout_weight="1"
                 android:text="@string/cat_vision"
                 style="?android:attr/buttonBarButtonStyle"
-                android:layout_marginStart="4dp"
                 android:layout_marginEnd="4dp"/>
 
             <Button
@@ -134,7 +116,6 @@
                 android:layout_weight="1"
                 android:text="@string/bird_vision"
                 style="?android:attr/buttonBarButtonStyle"
-                android:layout_marginStart="4dp"
                 android:layout_marginEnd="4dp"/>
 
             <Button
@@ -155,34 +136,11 @@
 
             <Button
                 android:id="@+id/redOnlyTestButton"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="🔴 RED TEST"
+                android:text="RED ONLY TEST"
                 style="?android:attr/buttonBarButtonStyle"
-                android:layout_marginEnd="4dp"
                 android:backgroundTint="#FFB3B3"/>
-
-            <Button
-                android:id="@+id/greenOnlyTestButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="🟢 GREEN TEST"
-                style="?android:attr/buttonBarButtonStyle"
-                android:layout_marginStart="4dp"
-                android:layout_marginEnd="4dp"
-                android:backgroundTint="#B3FFB3"/>
-
-            <Button
-                android:id="@+id/blueOnlyTestButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="🔵 BLUE TEST"
-                style="?android:attr/buttonBarButtonStyle"
-                android:layout_marginStart="4dp"
-                android:backgroundTint="#B3B3FF"/>
         </LinearLayout>
     </LinearLayout>
 
