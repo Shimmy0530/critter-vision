@@ -6,7 +6,9 @@
       "Bash(git fetch:*)",
       "Bash(git checkout:*)",
       "Bash(git stash:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(gh pr close:*)",
+      "Bash(./gradlew.bat assembleDebug:*)"
     ]
   }
 }

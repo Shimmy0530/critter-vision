@@ -54,12 +54,14 @@ class MainActivity : AppCompatActivity() {
         val birdVisionButton: Button = findViewById(R.id.birdVisionButton)
         val originalVisionButton: Button = findViewById(R.id.originalVisionButton)
         val redOnlyTestButton: Button = findViewById(R.id.redOnlyTestButton)
+        val greenOnlyTestButton: Button = findViewById(R.id.greenOnlyTestButton)
+        val blueOnlyTestButton: Button = findViewById(R.id.blueOnlyTestButton)
         val advancedFilterToggle: Button = findViewById(R.id.advancedFilterToggle)
         val filterIntensitySeekBar: SeekBar = findViewById(R.id.filterIntensitySeekBar)
         val intensityValueText: TextView = findViewById(R.id.intensityValueText)
 
         // Make buttons more prominent so they're visible through filters
-        makeButtonsProminent(dogVisionButton, catVisionButton, birdVisionButton, originalVisionButton, redOnlyTestButton)
+        makeButtonsProminent(dogVisionButton, catVisionButton, birdVisionButton, originalVisionButton, redOnlyTestButton, greenOnlyTestButton, blueOnlyTestButton)
 
         // Initialize cached filter
         updateCachedColorFilter()
@@ -91,7 +93,17 @@ class MainActivity : AppCompatActivity() {
             updatePreviewFilter()
             updateActiveFilterTextView()
         }
-        
+        greenOnlyTestButton.setOnClickListener {
+            currentFilter = VisionColorFilter.FilterType.GREEN_ONLY_TEST
+            updatePreviewFilter()
+            updateActiveFilterTextView()
+        }
+        blueOnlyTestButton.setOnClickListener {
+            currentFilter = VisionColorFilter.FilterType.BLUE_ONLY_TEST
+            updatePreviewFilter()
+            updateActiveFilterTextView()
+        }
+
         // Setup advanced filter toggle
         advancedFilterToggle.setOnClickListener { toggleAdvancedFilters() }
         
@@ -323,6 +335,8 @@ class MainActivity : AppCompatActivity() {
             VisionColorFilter.FilterType.CAT_ADVANCED -> "🐱 Cat Vision (Advanced)"
             VisionColorFilter.FilterType.BIRD_ADVANCED -> "🦅 Bird Vision (Advanced)"
             VisionColorFilter.FilterType.RED_ONLY_TEST -> "🔴 RED ONLY TEST"
+            VisionColorFilter.FilterType.GREEN_ONLY_TEST -> "🟢 GREEN ONLY TEST"
+            VisionColorFilter.FilterType.BLUE_ONLY_TEST -> "🔵 BLUE ONLY TEST"
             VisionColorFilter.FilterType.ORIGINAL -> "👁️ Human Vision"
         }
         val intensityText = if (filterIntensity < 1.0f) " (${(filterIntensity * 100).toInt()}%)" else ""

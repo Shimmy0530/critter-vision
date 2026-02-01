@@ -12,7 +12,7 @@ import kotlin.math.pow
 object VisionColorFilter {
 
     enum class FilterType {
-        ORIGINAL, DOG, CAT, BIRD, RED_ONLY_TEST,
+        ORIGINAL, DOG, CAT, BIRD, RED_ONLY_TEST, GREEN_ONLY_TEST, BLUE_ONLY_TEST,
         DOG_ADVANCED, CAT_ADVANCED, BIRD_ADVANCED  // Advanced spectral simulation modes
     }
 
@@ -67,6 +67,26 @@ object VisionColorFilter {
             0.0f, 0.0f, 0.0f, 1.0f, 0.0f
         )
         ColorMatrix(redOnlyMatrix)
+    }
+
+    private val cachedGreenOnlyTestMatrix by lazy {
+        val greenOnlyMatrix = floatArrayOf(
+            0.3f, 0.3f, 0.3f, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+            0.3f, 0.3f, 0.3f, 0.0f, 0.0f,
+            0.0f, 0.0f, 0.0f, 1.0f, 0.0f
+        )
+        ColorMatrix(greenOnlyMatrix)
+    }
+
+    private val cachedBlueOnlyTestMatrix by lazy {
+        val blueOnlyMatrix = floatArrayOf(
+            0.3f, 0.3f, 0.3f, 0.0f, 0.0f,
+            0.3f, 0.3f, 0.3f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 0.0f, 1.0f, 0.0f
+        )
+        ColorMatrix(blueOnlyMatrix)
     }
 
     private val advancedDogMatrixArray: FloatArray by lazy {
@@ -218,6 +238,10 @@ object VisionColorFilter {
 
     fun getRedOnlyTestMatrix(): ColorMatrix = cachedRedOnlyTestMatrix
 
+    fun getGreenOnlyTestMatrix(): ColorMatrix = cachedGreenOnlyTestMatrix
+
+    fun getBlueOnlyTestMatrix(): ColorMatrix = cachedBlueOnlyTestMatrix
+
     fun getMatrix(type: FilterType): ColorMatrix? {
         return when (type) {
             FilterType.DOG -> getDogVisionMatrix()
@@ -227,6 +251,8 @@ object VisionColorFilter {
             FilterType.CAT_ADVANCED -> getAdvancedCatMatrix()
             FilterType.BIRD_ADVANCED -> getAdvancedBirdMatrix()
             FilterType.RED_ONLY_TEST -> getRedOnlyTestMatrix()
+            FilterType.GREEN_ONLY_TEST -> getGreenOnlyTestMatrix()
+            FilterType.BLUE_ONLY_TEST -> getBlueOnlyTestMatrix()
             FilterType.ORIGINAL -> getHumanVisionMatrix()
         }
     }
@@ -256,6 +282,8 @@ object VisionColorFilter {
             FilterType.CAT_ADVANCED -> "Advanced limited dichromatic - Enhanced spectral accuracy with possible triple-cone simulation (450nm, 500nm, 555nm)"
             FilterType.BIRD_ADVANCED -> "Advanced tetrachromatic - Full spectral simulation with UV contribution and opponent processing (370nm, 450nm, 535nm, 565nm)"
             FilterType.RED_ONLY_TEST -> "TEST: Red channel only - Green and blue converted to grayscale for filter validation"
+            FilterType.GREEN_ONLY_TEST -> "TEST: Green channel only - Red and blue converted to grayscale for filter validation"
+            FilterType.BLUE_ONLY_TEST -> "TEST: Blue channel only - Red and green converted to grayscale for filter validation"
             FilterType.ORIGINAL -> "Human trichromatic vision (420nm, 535nm, 565nm peaks) - Full RGB spectrum without UV"
         }
     }
