@@ -18,107 +18,79 @@ object VisionColorFilter {
 
     // Cached matrix instances to avoid reallocation and recalculation
     private val cachedDogVisionMatrix by lazy {
-        // Scientifically accurate dog vision matrix based on dichromatic vision research
-        // Dogs have two cone types with spectral sensitivity peaks at ~430nm and ~555nm
         val dogMatrix = floatArrayOf(
-            0.625f, 0.375f, 0.0f,     0.0f, 0.0f,  // Red-green confusion, sees as yellow variations
-            0.7f,   0.3f,   0.0f,     0.0f, 0.0f,  // Green mixed with red, reduced discrimination
-            0.0f,   0.3f,   0.7f,     0.0f, 0.0f,  // Blue channel preserved with slight green influence
-            0.0f,   0.0f,   0.0f,     1.0f, 0.0f   // Alpha unchanged
+            0.625f, 0.375f, 0.0f,     0.0f, 0.0f,
+            0.7f,   0.3f,   0.0f,     0.0f, 0.0f,
+            0.0f,   0.3f,   0.7f,     0.0f, 0.0f,
+            0.0f,   0.0f,   0.0f,     1.0f, 0.0f
         )
         ColorMatrix(dogMatrix)
     }
 
     private val cachedCatVisionMatrix by lazy {
-        // Scientifically accurate cat vision matrix based on Clark & Clark (2016)
-        // Cat spectral sensitivity peaks at 460nm (blue) and 560nm (green), with a neutral point at 505nm
-        // Implements limited trichromatic ability with a weak middle cone at 500nm
         val catMatrix = floatArrayOf(
-            0.295f, 0.685f, 0.021f,   0.0f, 0.0f,  // L-cone (Red output): Driven by Human Green/Red
-            0.009f, 0.617f, 0.374f,   0.0f, 0.0f,  // M-cone (Green output): "Limited" middle channel
-            0.000f, 0.182f, 0.817f,   0.0f, 0.0f,  // S-cone (Blue output): Driven by Human Blue
-            0.0f,   0.0f,   0.0f,     1.0f, 0.0f   // Alpha unchanged
+            0.295f, 0.685f, 0.021f,   0.0f, 0.0f,
+            0.009f, 0.617f, 0.374f,   0.0f, 0.0f,
+            0.000f, 0.182f, 0.817f,   0.0f, 0.0f,
+            0.0f,   0.0f,   0.0f,     1.0f, 0.0f
         )
         ColorMatrix(catMatrix)
     }
 
     private val cachedBirdVisionMatrix by lazy {
-        // Scientifically accurate bird vision matrix simulating tetrachromatic vision
-        // Enhanced color saturation to approximate richer color perception within RGB limitations
         val birdMatrix = floatArrayOf(
-            1.2f,  -0.1f,   0.0f,     0.0f, 0.0f,  // Red enhanced with slight adjustment
-            -0.05f, 1.3f,  -0.05f,    0.0f, 0.0f,  // Green enhanced with UV influence simulation
-            0.0f,  -0.1f,   1.4f,     0.0f, 0.0f,  // Blue enhanced (UV compensation)
-            0.0f,   0.0f,   0.0f,     1.0f, 0.0f   // Alpha unchanged
+            1.2f,  -0.1f,   0.0f,     0.0f, 0.0f,
+            -0.05f, 1.3f,  -0.05f,    0.0f, 0.0f,
+            0.0f,  -0.1f,   1.4f,     0.0f, 0.0f,
+            0.0f,   0.0f,   0.0f,     1.0f, 0.0f
         )
         ColorMatrix(birdMatrix)
     }
 
     private val cachedHumanVisionMatrix by lazy {
         ColorMatrix().apply {
-            // Identity matrix - no color transformation
             val identityMatrix = floatArrayOf(
-                1.0f, 0.0f, 0.0f, 0.0f, 0.0f,  // Red channel unchanged
-                0.0f, 1.0f, 0.0f, 0.0f, 0.0f,  // Green channel unchanged
-                0.0f, 0.0f, 1.0f, 0.0f, 0.0f,  // Blue channel unchanged
-                0.0f, 0.0f, 0.0f, 1.0f, 0.0f   // Alpha channel unchanged
+                1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+                0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+                0.0f, 0.0f, 0.0f, 1.0f, 0.0f
             )
             set(identityMatrix)
         }
     }
 
     private val cachedRedOnlyTestMatrix by lazy {
-        // Red only matrix: Green and blue channels become grayscale luminance
-        // This should make everything red/gray with no green or blue colors
         val redOnlyMatrix = floatArrayOf(
-            1.0f, 0.0f, 0.0f, 0.0f, 0.0f,  // Red channel unchanged
-            0.3f, 0.3f, 0.3f, 0.0f, 0.0f,  // Green becomes grayscale (R*0.3 + G*0.3 + B*0.3)
-            0.3f, 0.3f, 0.3f, 0.0f, 0.0f,  // Blue becomes grayscale (R*0.3 + G*0.3 + B*0.3)
-            0.0f, 0.0f, 0.0f, 1.0f, 0.0f   // Alpha unchanged
+            1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+            0.3f, 0.3f, 0.3f, 0.0f, 0.0f,
+            0.3f, 0.3f, 0.3f, 0.0f, 0.0f,
+            0.0f, 0.0f, 0.0f, 1.0f, 0.0f
         )
         ColorMatrix(redOnlyMatrix)
     }
 
-    /**
-     * Advanced dog vision matrix using spectral response calculations
-     * More sophisticated dichromatic simulation based on actual cone sensitivity curves
-     */
     private val advancedDogMatrixArray: FloatArray by lazy {
         val matrix = FloatArray(20)
-
-        // Dog cone spectral sensitivity peaks
-        val sConePeak = 430f  // Short wavelength (blue-violet)
-        val lConePeak = 555f  // Long wavelength (yellow-green)
-
-        // RGB wavelength approximations
+        val sConePeak = 430f
+        val lConePeak = 555f
         val redWL = 650f
         val greenWL = 530f
         val blueWL = 430f
 
-        // Calculate spectral responses for each RGB component
-        matrix[0] = calculateConeResponse(redWL, lConePeak) * 0.8f    // Red → L-cone response
-        matrix[1] = calculateConeResponse(greenWL, lConePeak) * 0.9f  // Green → L-cone response
-        matrix[2] = calculateConeResponse(blueWL, sConePeak) * 0.1f   // Blue → S-cone influence on red
-        matrix[3] = 0f  // No alpha influence on red
-        matrix[4] = 0f  // No offset
-
-        matrix[5] = calculateConeResponse(redWL, lConePeak) * 0.7f    // Red → L-cone for green channel
-        matrix[6] = calculateConeResponse(greenWL, lConePeak) * 0.8f  // Green → L-cone response
-        matrix[7] = calculateConeResponse(blueWL, sConePeak) * 0.05f  // Blue → slight S-cone influence
-        matrix[8] = 0f  // No alpha influence on green
-        matrix[9] = 0f  // No offset
-
-        matrix[10] = 0f // Red has no direct influence on blue channel
-        matrix[11] = calculateConeResponse(greenWL, sConePeak) * 0.2f // Green → S-cone response
-        matrix[12] = calculateConeResponse(blueWL, sConePeak) * 0.9f  // Blue → S-cone response
-        matrix[13] = 0f // No alpha influence on blue
-        matrix[14] = 0f // No offset
-
-        matrix[15] = 0f // Alpha channel
-        matrix[16] = 0f
-        matrix[17] = 0f
-        matrix[18] = 1f // Preserve alpha
-        matrix[19] = 0f // No offset
+        matrix[0] = calculateConeResponse(redWL, lConePeak) * 0.8f
+        matrix[1] = calculateConeResponse(greenWL, lConePeak) * 0.9f
+        matrix[2] = calculateConeResponse(blueWL, sConePeak) * 0.1f
+        matrix[3] = 0f; matrix[4] = 0f
+        matrix[5] = calculateConeResponse(redWL, lConePeak) * 0.7f
+        matrix[6] = calculateConeResponse(greenWL, lConePeak) * 0.8f
+        matrix[7] = calculateConeResponse(blueWL, sConePeak) * 0.05f
+        matrix[8] = 0f; matrix[9] = 0f
+        matrix[10] = 0f
+        matrix[11] = calculateConeResponse(greenWL, sConePeak) * 0.2f
+        matrix[12] = calculateConeResponse(blueWL, sConePeak) * 0.9f
+        matrix[13] = 0f; matrix[14] = 0f
+        matrix[15] = 0f; matrix[16] = 0f; matrix[17] = 0f
+        matrix[18] = 1f; matrix[19] = 0f
 
         matrix
     }
@@ -238,29 +210,12 @@ object VisionColorFilter {
      */
     fun getDogVisionMatrix(): ColorMatrix = cachedDogVisionMatrix
 
-    /**
-     * Simulates Cat Vision - Dichromatic with neutral point at 505nm
-     * Based on Clark & Clark (2016) research showing 460nm and 560nm peaks
-     * Note: Implements limited trichromatic ability for greater accuracy
-     */
     fun getCatVisionMatrix(): ColorMatrix = cachedCatVisionMatrix
 
-    /**
-     * Simulates Bird Vision - Tetrachromatic with UV perception
-     * Based on research showing birds have four cone types: UV/Violet (355-426nm), Blue (~450nm), Green (~535nm), Red (~565nm)
-     * Birds have enhanced color discrimination and can see UV patterns invisible to humans
-     */
     fun getBirdVisionMatrix(): ColorMatrix = cachedBirdVisionMatrix
 
-    /**
-     * Get identity matrix for human vision (no filter)
-     */
     fun getHumanVisionMatrix(): ColorMatrix = cachedHumanVisionMatrix
 
-    /**
-     * TEST FILTER: Red only - converts green and blue to grayscale, keeps red channel
-     * This clearly demonstrates if color matrices are working properly
-     */
     fun getRedOnlyTestMatrix(): ColorMatrix = cachedRedOnlyTestMatrix
 
     fun getMatrix(type: FilterType): ColorMatrix? {

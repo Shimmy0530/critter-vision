@@ -57,7 +57,6 @@ class MainActivity : AppCompatActivity() {
         val advancedFilterToggle: Button = findViewById(R.id.advancedFilterToggle)
         val filterIntensitySeekBar: SeekBar = findViewById(R.id.filterIntensitySeekBar)
         val intensityValueText: TextView = findViewById(R.id.intensityValueText)
-        // filterIntensityPanel is accessed in toggleAdvancedFilters method
 
         // Make buttons more prominent so they're visible through filters
         makeButtonsProminent(dogVisionButton, catVisionButton, birdVisionButton, originalVisionButton, redOnlyTestButton)
@@ -117,16 +116,15 @@ class MainActivity : AppCompatActivity() {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
         }
     }
-    
+
     private fun toggleAdvancedFilters() {
         useAdvancedFilters = !useAdvancedFilters
         val advancedFilterToggle = findViewById<Button>(R.id.advancedFilterToggle)
         val filterIntensityPanel = findViewById<View>(R.id.filterIntensityPanel)
-        
+
         if (useAdvancedFilters) {
             advancedFilterToggle.text = "Advanced Filters"
             filterIntensityPanel.visibility = View.VISIBLE
-            // Switch current filter to advanced version
             currentFilter = when (currentFilter) {
                 VisionColorFilter.FilterType.DOG -> VisionColorFilter.FilterType.DOG_ADVANCED
                 VisionColorFilter.FilterType.CAT -> VisionColorFilter.FilterType.CAT_ADVANCED
@@ -136,7 +134,6 @@ class MainActivity : AppCompatActivity() {
         } else {
             advancedFilterToggle.text = "Standard Filters"
             filterIntensityPanel.visibility = View.GONE
-            // Switch current filter to standard version
             currentFilter = when (currentFilter) {
                 VisionColorFilter.FilterType.DOG_ADVANCED -> VisionColorFilter.FilterType.DOG
                 VisionColorFilter.FilterType.CAT_ADVANCED -> VisionColorFilter.FilterType.CAT
@@ -144,28 +141,24 @@ class MainActivity : AppCompatActivity() {
                 else -> currentFilter
             }
         }
-        
+
         updatePreviewFilter()
         updateActiveFilterTextView()
         Log.d(TAG, "Advanced filters: $useAdvancedFilters")
     }
-    
+
     private fun updateUI() {
         updateActiveFilterTextView()
     }
 
-
-
     private fun makeButtonsProminent(vararg buttons: Button) {
         buttons.forEach { button ->
-            // Make buttons stand out with white background and bold text
             button.setBackgroundColor(Color.WHITE)
             button.setTextColor(Color.BLACK)
             button.elevation = 8f
             button.alpha = 0.9f
         }
 
-        // Make the text view more prominent too
         activeFilterTextView.setBackgroundColor(Color.argb(200, 255, 255, 255))
         activeFilterTextView.setTextColor(Color.BLACK)
         activeFilterTextView.setPadding(16, 8, 16, 8)
@@ -265,7 +258,7 @@ class MainActivity : AppCompatActivity() {
                 processedImageView.setImageBitmap(rotatedBitmap)
                 applyColorMatrixToImageView()
             }
-            
+
             image.close()
         }
     }

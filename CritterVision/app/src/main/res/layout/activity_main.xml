@@ -2,6 +2,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mainConstraintLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MainActivity">
@@ -40,7 +41,7 @@
             android:textAlignment="center"
             android:text="@string/active_filter_initial_text"
             android:textSize="18sp"
-            android:paddingBottom="8dp"/>
+            android:padding="8dp"/>
 
         <Button
             android:id="@+id/advancedFilterToggle"
@@ -106,7 +107,6 @@
                 android:layout_weight="1"
                 android:text="@string/cat_vision"
                 style="?android:attr/buttonBarButtonStyle"
-                android:layout_marginStart="4dp"
                 android:layout_marginEnd="4dp"/>
 
             <Button
@@ -116,7 +116,6 @@
                 android:layout_weight="1"
                 android:text="@string/bird_vision"
                 style="?android:attr/buttonBarButtonStyle"
-                android:layout_marginStart="4dp"
                 android:layout_marginEnd="4dp"/>
 
             <Button
@@ -139,7 +138,7 @@
                 android:id="@+id/redOnlyTestButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="🔴 RED ONLY TEST"
+                android:text="RED ONLY TEST"
                 style="?android:attr/buttonBarButtonStyle"
                 android:backgroundTint="#FFB3B3"/>
         </LinearLayout>
