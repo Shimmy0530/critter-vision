@@ -23,7 +23,9 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest
+        working-directory: ./CritterVision
+        run: ../gradlew app:testDebugUnitTest
 
       - name: Run Lint
-        run: ./gradlew lintDebug
+        working-directory: ./CritterVision
+        run: ../gradlew app:lintDebug
