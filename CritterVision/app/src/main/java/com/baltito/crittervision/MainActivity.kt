@@ -45,6 +45,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         processedImageView = findViewById(R.id.processedImageView)
+        processedImageView.scaleType = ImageView.ScaleType.MATRIX
         activeFilterTextView = findViewById(R.id.activeFilterTextView)
         cameraExecutor = Executors.newSingleThreadExecutor()
 
@@ -223,16 +224,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private inner class RgbImageAnalyzer : ImageAnalysis.Analyzer {
-        private var rgbBitmap: Bitmap? = null
+        // Double buffering to prevent tearing while avoiding allocation
+        private val rgbBitmaps = arrayOfNulls<Bitmap>(2)
+        private var currentBitmapIndex = 0
         private var pixelBuffer: ByteArray? = null
 
         override fun analyze(image: ImageProxy) {
             val width = image.width
             val height = image.height
 
-            // Initialize or reuse bitmap
-            if (rgbBitmap == null || rgbBitmap?.width != width || rgbBitmap?.height != height) {
-                rgbBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            // Initialize or reuse bitmap from pool
+            var currentBitmap = rgbBitmaps[currentBitmapIndex]
+            if (currentBitmap == null || currentBitmap.width != width || currentBitmap.height != height) {
+                currentBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                rgbBitmaps[currentBitmapIndex] = currentBitmap
             }
 
             val plane = image.planes[0]
@@ -242,7 +247,7 @@ class MainActivity : AppCompatActivity() {
             // If the buffer is packed (rowStride == width * 4), we can copy directly
             if (rowStride == width * 4) {
                 buffer.rewind()
-                rgbBitmap?.copyPixelsFromBuffer(buffer)
+                currentBitmap.copyPixelsFromBuffer(buffer)
             } else {
                 // Handle padding: copy row by row into a packed buffer
                 val bufferSize = width * height * 4
@@ -257,22 +262,50 @@ class MainActivity : AppCompatActivity() {
                     buffer.position(row * rowStride)
                     buffer.get(tempBuffer, row * rowWidth, rowWidth)
                 }
-                rgbBitmap?.copyPixelsFromBuffer(ByteBuffer.wrap(tempBuffer))
+                currentBitmap.copyPixelsFromBuffer(ByteBuffer.wrap(tempBuffer))
             }
 
             val rotationDegrees = image.imageInfo.rotationDegrees
-
-            // Create a matrix for the rotation
-            val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
-            val rotatedBitmap = Bitmap.createBitmap(rgbBitmap!!, 0, 0, width, height, matrix, true)
+            val bitmapToDraw = currentBitmap
 
             runOnUiThread {
-                processedImageView.setImageBitmap(rotatedBitmap)
+                processedImageView.setImageBitmap(bitmapToDraw)
+                updateImageViewMatrix(processedImageView, width, height, rotationDegrees)
                 applyColorMatrixToImageView()
             }
 
+            // Swap buffer for next frame
+            currentBitmapIndex = (currentBitmapIndex + 1) % 2
+
             image.close()
         }
+    }
+
+    private fun updateImageViewMatrix(imageView: ImageView, bmpWidth: Int, bmpHeight: Int, rotationDegrees: Int) {
+        val viewWidth = imageView.width.toFloat()
+        val viewHeight = imageView.height.toFloat()
+        if (viewWidth == 0f || viewHeight == 0f) return
+
+        val matrix = Matrix()
+
+        // 1. Translate center of bitmap to origin
+        matrix.postTranslate(-bmpWidth / 2f, -bmpHeight / 2f)
+
+        // 2. Rotate
+        matrix.postRotate(rotationDegrees.toFloat())
+
+        // 3. Scale to fill view (CenterCrop behavior)
+        // If rotation is 90 or 270, the effective size is swapped
+        val rotatedWidth = if (rotationDegrees == 90 || rotationDegrees == 270) bmpHeight.toFloat() else bmpWidth.toFloat()
+        val rotatedHeight = if (rotationDegrees == 90 || rotationDegrees == 270) bmpWidth.toFloat() else bmpHeight.toFloat()
+
+        val scale = kotlin.math.max(viewWidth / rotatedWidth, viewHeight / rotatedHeight)
+        matrix.postScale(scale, scale)
+
+        // 4. Translate to center of view
+        matrix.postTranslate(viewWidth / 2f, viewHeight / 2f)
+
+        imageView.imageMatrix = matrix
     }
 
     private fun updatePreviewFilter() {

@@ -83,7 +83,8 @@
                 android:layout_gravity="center_vertical"
                 android:paddingStart="8dp"
                 android:minWidth="40dp"
-                android:textAlignment="center"/>
+                android:textAlignment="center"
+                android:gravity="center"/>
         </LinearLayout>
 
         <LinearLayout
