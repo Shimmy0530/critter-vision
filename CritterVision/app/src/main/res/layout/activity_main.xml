@@ -81,6 +81,7 @@
                 android:layout_height="wrap_content"
                 android:text="100%"
                 android:layout_gravity="center_vertical"
+                android:gravity="center"
                 android:paddingStart="8dp"
                 android:minWidth="40dp"
                 android:textAlignment="center"/>

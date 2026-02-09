@@ -35,6 +35,9 @@ class MainActivity : AppCompatActivity() {
     private var imageAnalyzer: ImageAnalysis? = null
     private var cameraProvider: ProcessCameraProvider? = null
 
+    // Matrix for handling image rotation and scaling on the ImageView
+    private val displayMatrix = Matrix()
+
     private var cachedColorFilter: ColorFilter? = null
     private var currentFilter: VisionColorFilter.FilterType = VisionColorFilter.FilterType.ORIGINAL
     private var useAdvancedFilters = false
@@ -45,6 +48,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         processedImageView = findViewById(R.id.processedImageView)
+        processedImageView.scaleType = ImageView.ScaleType.MATRIX
         activeFilterTextView = findViewById(R.id.activeFilterTextView)
         cameraExecutor = Executors.newSingleThreadExecutor()
 
@@ -223,17 +227,27 @@ class MainActivity : AppCompatActivity() {
     }
 
     private inner class RgbImageAnalyzer : ImageAnalysis.Analyzer {
-        private var rgbBitmap: Bitmap? = null
+        // Double buffering to prevent tearing when writing from background thread
+        // while UI thread is reading/rendering the bitmap.
+        private val rgbBitmaps = arrayOfNulls<Bitmap>(2)
+        private var currentBitmapIndex = 0
         private var pixelBuffer: ByteArray? = null
 
         override fun analyze(image: ImageProxy) {
             val width = image.width
             val height = image.height
 
+            // Switch to the next bitmap in the buffer
+            currentBitmapIndex = (currentBitmapIndex + 1) % 2
+
             // Initialize or reuse bitmap
-            if (rgbBitmap == null || rgbBitmap?.width != width || rgbBitmap?.height != height) {
-                rgbBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            if (rgbBitmaps[currentBitmapIndex] == null ||
+                rgbBitmaps[currentBitmapIndex]?.width != width ||
+                rgbBitmaps[currentBitmapIndex]?.height != height) {
+                rgbBitmaps[currentBitmapIndex] = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             }
+
+            val currentBitmap = rgbBitmaps[currentBitmapIndex]!!
 
             val plane = image.planes[0]
             val buffer = plane.buffer
@@ -242,7 +256,7 @@ class MainActivity : AppCompatActivity() {
             // If the buffer is packed (rowStride == width * 4), we can copy directly
             if (rowStride == width * 4) {
                 buffer.rewind()
-                rgbBitmap?.copyPixelsFromBuffer(buffer)
+                currentBitmap.copyPixelsFromBuffer(buffer)
             } else {
                 // Handle padding: copy row by row into a packed buffer
                 val bufferSize = width * height * 4
@@ -257,17 +271,20 @@ class MainActivity : AppCompatActivity() {
                     buffer.position(row * rowStride)
                     buffer.get(tempBuffer, row * rowWidth, rowWidth)
                 }
-                rgbBitmap?.copyPixelsFromBuffer(ByteBuffer.wrap(tempBuffer))
+                currentBitmap.copyPixelsFromBuffer(ByteBuffer.wrap(tempBuffer))
             }
 
             val rotationDegrees = image.imageInfo.rotationDegrees
 
-            // Create a matrix for the rotation
-            val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
-            val rotatedBitmap = Bitmap.createBitmap(rgbBitmap!!, 0, 0, width, height, matrix, true)
-
             runOnUiThread {
-                processedImageView.setImageBitmap(rotatedBitmap)
+                // Update the matrix to handle rotation and scaling (center crop)
+                updateImageViewMatrix(processedImageView.width, processedImageView.height,
+                                      width, height, rotationDegrees.toFloat())
+
+                // Apply the matrix and set the bitmap
+                processedImageView.imageMatrix = displayMatrix
+                processedImageView.setImageBitmap(currentBitmap)
+
                 applyColorMatrixToImageView()
             }
 
@@ -322,6 +339,36 @@ class MainActivity : AppCompatActivity() {
         
         scaledMatrix.set(scaledArray)
         return scaledMatrix
+    }
+
+    /**
+     * Updates the display matrix to handle rotation and center-crop scaling
+     * without allocating new Bitmaps.
+     */
+    private fun updateImageViewMatrix(viewWidth: Int, viewHeight: Int, bitmapWidth: Int, bitmapHeight: Int, rotationDegrees: Float) {
+        displayMatrix.reset()
+        if (viewWidth == 0 || viewHeight == 0 || bitmapWidth == 0 || bitmapHeight == 0) {
+            return
+        }
+
+        val centerX = bitmapWidth / 2f
+        val centerY = bitmapHeight / 2f
+
+        // Move to center, rotate, then scale and move to view center
+        displayMatrix.postTranslate(-centerX, -centerY)
+        displayMatrix.postRotate(rotationDegrees)
+
+        // After rotation, calculate effective width/height
+        val rotatedWidth = if (rotationDegrees == 90f || rotationDegrees == 270f) bitmapHeight.toFloat() else bitmapWidth.toFloat()
+        val rotatedHeight = if (rotationDegrees == 90f || rotationDegrees == 270f) bitmapWidth.toFloat() else bitmapHeight.toFloat()
+
+        // Calculate scale for CenterCrop
+        val scaleX = viewWidth / rotatedWidth
+        val scaleY = viewHeight / rotatedHeight
+        val scale = kotlin.math.max(scaleX, scaleY)
+
+        displayMatrix.postScale(scale, scale)
+        displayMatrix.postTranslate(viewWidth / 2f, viewHeight / 2f)
     }
 
 
