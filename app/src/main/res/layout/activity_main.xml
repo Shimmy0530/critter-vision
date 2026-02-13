@@ -15,11 +15,10 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <ImageView
-            android:id="@+id/processedImageView"
+        <androidx.camera.view.PreviewView
+            android:id="@+id/previewView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:scaleType="centerCrop"
             android:background="#000000" />
 
     </FrameLayout>
@@ -43,22 +42,12 @@
             android:textSize="18sp"
             android:padding="8dp"/>
 
-        <Button
-            android:id="@+id/advancedFilterToggle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Standard Filters"
-            style="?android:attr/buttonBarButtonStyle"
-            android:layout_marginBottom="8dp"
-            android:backgroundTint="#F5F5E8"/>
-
         <LinearLayout
             android:id="@+id/filterIntensityPanel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginBottom="8dp"
-            android:visibility="gone">
+            android:layout_marginBottom="8dp">
 
             <TextView
                 android:layout_width="wrap_content"
