@@ -29,6 +29,25 @@ import java.util.concurrent.Executor
  * saturation boost, UV proxy, and intensity blending), and output to the preview surface.
  *
  * Frame processing takes <0.5ms on GPU — roughly 60× faster than 30fps requires.
+ *
+ * ## Approach: Shader-based vs. ColorMatrix
+ *
+ * This processor uses a GLSL fragment shader rather than Android's [android.graphics.ColorMatrix]
+ * / [android.graphics.ColorMatrixColorFilter] because:
+ *
+ * 1. **sRGB linearization**: Color science matrices (Machado, Viénot/Brettel) require
+ *    linear RGB input. The shader linearizes sRGB → applies matrix → re-encodes, which
+ *    ColorMatrix cannot do (it operates in gamma-encoded sRGB space).
+ * 2. **Additional effects**: Saturation boost (HSV-space), UV proxy estimation, and
+ *    intensity blending are all applied in a single shader pass. ColorMatrix is limited
+ *    to a single 4×5 affine transform.
+ * 3. **Performance**: Uniform-driven parameters avoid shader recompilation when switching
+ *    modes. Each frame reads `@Volatile` fields and uploads them as uniforms.
+ * 4. **CameraX integration**: The SurfaceProcessor API naturally feeds OES textures into
+ *    a GL pipeline, making shader-based transforms the idiomatic approach.
+ *
+ * A ColorMatrix-based fallback is available in [VisionMatrices] for non-GL contexts
+ * (e.g. Bitmap filtering, ImageView overlays).
  */
 class AnimalVisionProcessor : SurfaceProcessor {
 

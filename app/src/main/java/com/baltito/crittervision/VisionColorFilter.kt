@@ -17,6 +17,24 @@ package com.baltito.crittervision
  *
  * All 3x3 matrices operate on linear RGB (sRGB must be linearized first).
  * colorOffset is applied in sRGB display space after gamma encoding.
+ *
+ * ## How to add a new species
+ *
+ * 1. Add a new entry to [VisionMode] (e.g. `GECKO`).
+ * 2. Define a 9-element row-major 3×3 matrix constant (linear RGB, row sums ≈ 1.0
+ *    for luminance preservation). Optionally define colorOffset, saturationBoost,
+ *    and uvProxyWeight if the species has special visual properties.
+ * 3. Add a [VisionParams] mapping in [getParams] with a scientific citation in the
+ *    description.
+ * 4. Add a corresponding 4×5 ColorMatrix entry in [VisionMatrices] for the
+ *    non-GL fallback path.
+ * 5. In [MainActivity], add the new mode to `animalModes` (scrollable row) or
+ *    `bottomModes` (fixed row) so a UI button appears.
+ * 6. Add unit tests in `VisionColorFilterTest` for row sums, parameter ranges,
+ *    and any species-specific invariants.
+ *
+ * No shader recompilation is needed — [AnimalVisionProcessor] reads new parameters
+ * via `@Volatile` fields each frame.
  */
 object VisionColorFilter {
 
