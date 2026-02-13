@@ -1,6 +1,5 @@
 plugins {
     id 'com.android.application'
-    id 'org.jetbrains.kotlin.android' // Apply Kotlin plugin
 }
 
 android {
@@ -27,14 +26,10 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
-    kotlinOptions {
-        jvmTarget = '1.8'
-    }
 }
 
 dependencies {
 
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.20" // Kotlin standard library
     implementation 'androidx.appcompat:appcompat:1.6.1' // Ensure this is a recent version
     implementation 'com.google.android.material:material:1.9.0' // Ensure this is a recent version
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
