@@ -1,71 +1,89 @@
-# CritterVision 🐾👀
+# CritterVision
 
-CritterVision is a fun Android application that lets you experience the world through the eyes of different animals! Using your device's camera, the app applies real-time visual filters to simulate how animals like dogs, cats, and birds perceive their surroundings.
+CritterVision is an Android camera app that simulates how different animals see the world. It applies real-time GPU color transformations to your live camera feed, letting you experience vision through the eyes of 10 different animals.
 
-## 🌟 Features
+## Features
 
-* **Live Camera Feed:** See the world around you directly through the app.
-* **🐶 Dog Vision Mode:** Experience a simulated dichromatic vision, primarily seeing shades of blue, yellow, and gray.
-* **🐱 Cat Vision Mode:** View the world with simulated dichromatic vision similar to a dog, but with potential enhancements for blue/green distinction and slightly improved brightness in lower light.
-* **🐦 Bird Vision Mode:** Get a glimpse into a bird's vibrant world with an attempt to simulate their broader color spectrum, including a suggestion of UV perception through enhanced color vibrancy.
-* **👤 Original Vision Mode:** Easily switch back to the standard, unfiltered camera view.
-* **Simple Interface:** Easy-to-use buttons to switch between different animal perspectives.
+- **10 Animal Vision Modes:** Dog, Cat, Bird, Eagle, Horse, Mantis Shrimp, Reindeer, Cuttlefish, Pit Viper, and Human (baseline)
+- **3 Debug Modes:** Red, Green, and Blue channel isolation for development and testing
+- **Real-Time GPU Processing:** OpenGL ES 2.0 fragment shaders process camera frames in under 0.5ms
+- **Intensity Slider:** Adjust filter strength from 0% to 100% to blend between normal and simulated vision
+- **Simple Interface:** Scrollable animal button row + fixed bottom row for Human and debug modes
 
-## 📱 How to Use
+## How to Use
 
-1.  Launch the CritterVision app.
-2.  Grant camera permission if prompted.
-3.  The app will open with the live camera feed.
-4.  Tap one of the animal buttons at the bottom (or side) of the screen:
-    * **"Dog Vision"**
-    * **"Cat Vision"**
-    * **"Bird Vision"**
-5.  The camera feed will update with the selected animal's simulated vision filter.
-6.  Tap **"Original Vision"** (or a similar button) to return to the normal camera view.
+1. Launch CritterVision and grant camera permission when prompted.
+2. The app opens with your live camera feed in Human Vision (unfiltered).
+3. Tap any animal button in the scrollable top row to apply that vision filter.
+4. Use the intensity slider to adjust filter strength.
+5. Tap **Human Vision** in the bottom row to return to normal view.
+6. Use the **Red/Green/Blue Channel** buttons for debug visualization.
 
-## 🔬 Vision Filter Details (Simplified Simulations)
+## Vision Modes
 
-The vision filters are artistic interpretations based on scientific understanding of animal vision:
+Each filter is based on published research on animal color perception. All color matrices operate on linear RGB (sRGB linearized in the shader).
 
-* **Dog Vision:**
-    * **Color:** Simulates dichromatic vision (two primary color receptors). Reds and greens may appear as shades of yellow or gray. Blues and yellows are more prominent.
-    * **Acuity:** May include a slight reduction in overall sharpness.
-* **Cat Vision:**
-    * **Color:** Also dichromatic, similar to dogs, but potentially better at distinguishing blues and greens. Reds may appear greenish.
-    * **Low Light:** Slightly increased brightness/contrast to mimic better vision in dim conditions.
-    * **Blur:** Distant objects might appear subtly less sharp.
-* **Bird Vision (General Songbird/Pigeon):**
-    * **Color:** Attempts to simulate tetrachromatic vision (four color receptors), which includes UV light. This is approximated by enhancing overall color vibrancy and potentially shifting some hues to suggest sensitivity to a broader spectrum. Blues and violets may appear more intense.
-    * **Sharpness:** Generally maintains or slightly enhances image sharpness.
+| Animal | Type | Scientific Basis |
+|---|---|---|
+| **Dog** | Dichromatic | Machado et al. 2009 deuteranopia (severity=1.0) — blue-yellow world, no red-green distinction |
+| **Cat** | Dichromatic + desaturated | Vienot/Brettel method at cat cone positions (S=450nm, L=554nm) with 0.625 desaturation blend for low cone density |
+| **Bird** | Tetrachromatic approximation | Heuristic spectral shift from Hart 2001 cone data + saturation x1.35 (oil droplet narrowing) + UV proxy |
+| **Eagle** | Tetrachromatic + high acuity | Enhanced color separation with brightness offset; models 4-8x human acuity |
+| **Horse** | Dichromatic | Blue-yellow vision (S=428nm, L=539nm); red and green collapse to muddy yellow |
+| **Mantis Shrimp** | Hyperspectral | 12-16 receptor approximation; hypersaturation x1.80 + UV proxy 0.40 |
+| **Reindeer** | UV-sensitive | UV reflectance mapped to blue/cyan glow for snow and trail navigation |
+| **Cuttlefish** | Polarization-sensitive | W-pupil model with subtle saturation boost x1.15 and specular surface enhancement |
+| **Pit Viper** | Infrared | Thermal pit organ simulation; luminance mapped to red channel (green/blue zeroed) |
 
-## 🛠️ Technologies Used
+## Architecture
 
-*(This section should be updated based on the technologies and libraries used by Google Jules or chosen during development. Examples might include:*
+```
+Camera → CameraX Preview
+  → AnimalVisionEffect (CameraEffect wrapper)
+    → AnimalVisionProcessor (OpenGL ES 2.0 SurfaceProcessor)
+      → OES texture → GLSL fragment shader → PreviewView
+```
 
-* **Language:** Kotlin / Java
-* **Platform:** Android (Native)
-* **Camera API:** CameraX / Camera2 API
-* **Image Processing:** OpenGL Shaders / Android RenderScript / Custom image manipulation libraries
-* **IDE:** Android Studio
-* ... (any other relevant frameworks or libraries) ...)*
+**Shader pipeline:** sRGB linearization → 3x3 color matrix → sRGB encoding → color offset → saturation boost → UV proxy → intensity blend
 
-## 🤝 Contributing
+Key files:
+- `AnimalVisionProcessor.kt` — EGL context, GLSL shaders, GL rendering on a dedicated HandlerThread
+- `AnimalVisionEffect.kt` — CameraEffect wrapper passing the processor to CameraX
+- `VisionColorFilter.kt` — VisionMode enum, VisionParams data class, 3x3 matrices and per-mode parameters
+- `MainActivity.kt` — UI setup, CameraX binding with UseCaseGroup, intensity slider
 
-Contributions are welcome! If you have ideas for improvements, new animal vision modes, or bug fixes, please feel free to:
+## Technologies
 
-1.  Fork the repository.
-2.  Create a new branch (`git checkout -b feature/YourAmazingFeature`).
-3.  Make your changes.
-4.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-5.  Push to the branch (`git push origin feature/YourAmazingFeature`).
-6.  Open a Pull Request.
+- **Language:** Kotlin (managed by AGP 9.0 built-in Kotlin support)
+- **Platform:** Android (Min SDK 26, Target SDK 34)
+- **Camera:** CameraX 1.4.0 (camera-core, camera-camera2, camera-lifecycle, camera-view, camera-effects)
+- **GPU Processing:** OpenGL ES 2.0 fragment shaders via CameraX SurfaceProcessor
+- **Build:** Gradle 9.1, Android Gradle Plugin 9.0, Java 21 toolchain
+- **UI:** XML layouts with programmatic button creation (no Compose)
 
-Please make sure to update tests as appropriate.
+## Building
 
-## 📄 License
+```bash
+# Set Java 21 (required)
+export JAVA_HOME="C:/Program Files/Android/Android Studio/jbr"
+
+# Build debug APK
+./gradlew assembleDebug --no-daemon
+
+# Run unit tests
+./gradlew test --no-daemon
+```
+
+## Contributing
+
+Contributions are welcome! If you have ideas for new animal vision modes, improved color science, or bug fixes:
+
+1. Fork the repository.
+2. Create a feature branch (`git checkout -b feature/YourFeature`).
+3. Make your changes and update tests as appropriate.
+4. Commit and push to your branch.
+5. Open a Pull Request.
+
+## License
 
 This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
-
----
-
-Enjoy seeing the world from a new perspective with CritterVision!
