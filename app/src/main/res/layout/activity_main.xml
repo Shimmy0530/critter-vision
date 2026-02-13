@@ -75,85 +75,27 @@
                 android:textAlignment="center"/>
         </LinearLayout>
 
-        <LinearLayout
+        <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:scrollbars="none"
+            android:fadingEdge="horizontal"
+            android:fadingEdgeLength="16dp">
 
-            <Button
-                android:id="@+id/dogVisionButton"
-                android:layout_width="0dp"
+            <LinearLayout
+                android:id="@+id/animalButtonsRow"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/dog_vision"
-                style="?android:attr/buttonBarButtonStyle"
-                android:layout_marginEnd="4dp"/>
+                android:orientation="horizontal" />
 
-            <Button
-                android:id="@+id/catVisionButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/cat_vision"
-                style="?android:attr/buttonBarButtonStyle"
-                android:layout_marginEnd="4dp"/>
-
-            <Button
-                android:id="@+id/birdVisionButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/bird_vision"
-                style="?android:attr/buttonBarButtonStyle"
-                android:layout_marginEnd="4dp"/>
-
-            <Button
-                android:id="@+id/originalVisionButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/original_vision"
-                style="?android:attr/buttonBarButtonStyle"
-                android:layout_marginStart="4dp"/>
-        </LinearLayout>
+        </HorizontalScrollView>
 
         <LinearLayout
+            android:id="@+id/bottomButtonsRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="4dp">
-
-            <Button
-                android:id="@+id/redOnlyTestButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="RED TEST"
-                style="?android:attr/buttonBarButtonStyle"
-                android:layout_marginEnd="4dp"
-                android:backgroundTint="#FFB3B3"/>
-
-            <Button
-                android:id="@+id/greenOnlyTestButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="GREEN TEST"
-                style="?android:attr/buttonBarButtonStyle"
-                android:layout_marginStart="4dp"
-                android:layout_marginEnd="4dp"
-                android:backgroundTint="#B3FFB3"/>
-
-            <Button
-                android:id="@+id/blueOnlyTestButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="BLUE TEST"
-                style="?android:attr/buttonBarButtonStyle"
-                android:layout_marginStart="4dp"
-                android:backgroundTint="#B3B3FF"/>
-        </LinearLayout>
+            android:layout_marginTop="4dp" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

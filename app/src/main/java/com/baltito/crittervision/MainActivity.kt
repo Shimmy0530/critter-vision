@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
@@ -31,9 +32,32 @@ class MainActivity : AppCompatActivity() {
 
     private var currentMode = VisionColorFilter.VisionMode.HUMAN
     private var filterIntensity = 1.0f
+    private var selectedButton: Button? = null
+    private val buttonDefaultColors = mutableMapOf<Button, Int>()
 
     private lateinit var visionProcessor: AnimalVisionProcessor
     private lateinit var visionEffect: AnimalVisionEffect
+
+    // Animal modes in scrollable top row
+    private val animalModes = listOf(
+        VisionColorFilter.VisionMode.DOG,
+        VisionColorFilter.VisionMode.CAT,
+        VisionColorFilter.VisionMode.BIRD,
+        VisionColorFilter.VisionMode.EAGLE,
+        VisionColorFilter.VisionMode.HORSE,
+        VisionColorFilter.VisionMode.MANTIS_SHRIMP,
+        VisionColorFilter.VisionMode.REINDEER,
+        VisionColorFilter.VisionMode.CUTTLEFISH,
+        VisionColorFilter.VisionMode.PIT_VIPER
+    )
+
+    // Bottom row: Human + test/debug modes with tint colors
+    private val bottomModes = listOf(
+        VisionColorFilter.VisionMode.HUMAN to null,
+        VisionColorFilter.VisionMode.RED_ONLY to 0xFFFFB3B3.toInt(),
+        VisionColorFilter.VisionMode.GREEN_ONLY to 0xFFB3FFB3.toInt(),
+        VisionColorFilter.VisionMode.BLUE_ONLY to 0xFFB3B3FF.toInt()
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,12 +65,15 @@ class MainActivity : AppCompatActivity() {
 
         previewView = findViewById(R.id.previewView)
         activeFilterTextView = findViewById(R.id.activeFilterTextView)
+        activeFilterTextView.setBackgroundColor(Color.argb(200, 255, 255, 255))
+        activeFilterTextView.setTextColor(Color.BLACK)
+        activeFilterTextView.setPadding(16, 8, 16, 8)
 
         // Create the GPU processor and CameraX effect
         visionProcessor = AnimalVisionProcessor()
         visionEffect = AnimalVisionEffect(visionProcessor)
 
-        setupButtons()
+        setupVisionChips()
         setupIntensitySlider()
         updateVisionMode(VisionColorFilter.VisionMode.HUMAN)
 
@@ -57,24 +84,72 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupButtons() {
-        val dogBtn: Button = findViewById(R.id.dogVisionButton)
-        val catBtn: Button = findViewById(R.id.catVisionButton)
-        val birdBtn: Button = findViewById(R.id.birdVisionButton)
-        val originalBtn: Button = findViewById(R.id.originalVisionButton)
-        val redBtn: Button = findViewById(R.id.redOnlyTestButton)
-        val greenBtn: Button = findViewById(R.id.greenOnlyTestButton)
-        val blueBtn: Button = findViewById(R.id.blueOnlyTestButton)
+    private fun setupVisionChips() {
+        val animalRow: LinearLayout = findViewById(R.id.animalButtonsRow)
+        val bottomRow: LinearLayout = findViewById(R.id.bottomButtonsRow)
 
-        makeButtonsProminent(dogBtn, catBtn, birdBtn, originalBtn, redBtn, greenBtn, blueBtn)
+        // Animal vision buttons (scrollable top row)
+        for (mode in animalModes) {
+            val params = VisionColorFilter.getParams(mode)
+            val btn = createChipButton(params.displayName)
+            buttonDefaultColors[btn] = Color.WHITE
+            btn.setOnClickListener {
+                updateVisionMode(mode)
+                highlightButton(btn)
+            }
+            animalRow.addView(btn)
+        }
 
-        dogBtn.setOnClickListener { updateVisionMode(VisionColorFilter.VisionMode.DOG) }
-        catBtn.setOnClickListener { updateVisionMode(VisionColorFilter.VisionMode.CAT) }
-        birdBtn.setOnClickListener { updateVisionMode(VisionColorFilter.VisionMode.BIRD) }
-        originalBtn.setOnClickListener { updateVisionMode(VisionColorFilter.VisionMode.HUMAN) }
-        redBtn.setOnClickListener { updateVisionMode(VisionColorFilter.VisionMode.RED_ONLY) }
-        greenBtn.setOnClickListener { updateVisionMode(VisionColorFilter.VisionMode.GREEN_ONLY) }
-        blueBtn.setOnClickListener { updateVisionMode(VisionColorFilter.VisionMode.BLUE_ONLY) }
+        // Bottom row: Human + test buttons (fixed, equal width)
+        for ((mode, tint) in bottomModes) {
+            val params = VisionColorFilter.getParams(mode)
+            val btn = createChipButton(params.displayName)
+            val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            lp.setMargins(4, 0, 4, 0)
+            btn.layoutParams = lp
+            val bgColor = tint ?: Color.WHITE
+            btn.setBackgroundColor(bgColor)
+            buttonDefaultColors[btn] = bgColor
+            btn.setOnClickListener {
+                updateVisionMode(mode)
+                highlightButton(btn)
+            }
+            bottomRow.addView(btn)
+            if (mode == VisionColorFilter.VisionMode.HUMAN) {
+                highlightButton(btn)
+            }
+        }
+    }
+
+    private fun createChipButton(label: String): Button {
+        val btn = Button(this)
+        btn.text = label
+        btn.setBackgroundColor(Color.WHITE)
+        btn.setTextColor(Color.BLACK)
+        btn.elevation = 8f
+        btn.alpha = 0.9f
+        btn.isAllCaps = false
+        btn.textSize = 13f
+        btn.setPadding(24, 8, 24, 8)
+        val lp = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        lp.setMargins(4, 0, 4, 0)
+        btn.layoutParams = lp
+        return btn
+    }
+
+    private fun highlightButton(btn: Button) {
+        // Reset previous selection to its default color
+        selectedButton?.let {
+            it.setBackgroundColor(buttonDefaultColors[it] ?: Color.WHITE)
+            it.setTextColor(Color.BLACK)
+        }
+        // Highlight new selection
+        btn.setBackgroundColor(Color.parseColor("#1565C0"))
+        btn.setTextColor(Color.WHITE)
+        selectedButton = btn
     }
 
     private fun setupIntensitySlider() {
@@ -110,18 +185,6 @@ class MainActivity : AppCompatActivity() {
         val params = VisionColorFilter.getParams(currentMode)
         val intensityText = if (filterIntensity < 1.0f) " (${(filterIntensity * 100).toInt()}%)" else ""
         activeFilterTextView.text = "Current View: ${params.displayName}$intensityText"
-    }
-
-    private fun makeButtonsProminent(vararg buttons: Button) {
-        buttons.forEach { button ->
-            button.setBackgroundColor(Color.WHITE)
-            button.setTextColor(Color.BLACK)
-            button.elevation = 8f
-            button.alpha = 0.9f
-        }
-        activeFilterTextView.setBackgroundColor(Color.argb(200, 255, 255, 255))
-        activeFilterTextView.setTextColor(Color.BLACK)
-        activeFilterTextView.setPadding(16, 8, 16, 8)
     }
 
     // ── Camera ──────────────────────────────────────────────────────────

@@ -8,18 +8,27 @@ package com.baltito.crittervision
  *      with 0.625 desaturation blend modeling low cone density
  * Bird: Heuristic spectral shift matrix based on Hart (2001) cone data
  *       with oil droplet filtering approximation via saturation boost + UV proxy
+ * Eagle: Tetrachromatic + 4-8x acuity; enhanced color separation with brightness offset
+ * Horse: Dichromatic (blue/yellow), red/green collapse
+ * Mantis Shrimp: 12-16 receptor types; hypersaturated with UV proxy
+ * Reindeer: UV-sensitive for snow/trail navigation; UV → cyan glow
+ * Cuttlefish: Polarization-sensitive W-pupil; enhanced specular detection
+ * Pit Viper: Infrared pit organs; luminance → thermal red mapping
  *
  * All 3x3 matrices operate on linear RGB (sRGB must be linearized first).
- * Bird matrix is heuristic and works on either space.
+ * colorOffset is applied in sRGB display space after gamma encoding.
  */
 object VisionColorFilter {
 
     enum class VisionMode {
-        HUMAN, DOG, CAT, BIRD, RED_ONLY, GREEN_ONLY, BLUE_ONLY
+        HUMAN, DOG, CAT, BIRD,
+        EAGLE, HORSE, MANTIS_SHRIMP, REINDEER, CUTTLEFISH, PIT_VIPER,
+        RED_ONLY, GREEN_ONLY, BLUE_ONLY
     }
 
     data class VisionParams(
         val matrix: FloatArray,        // 9 elements, row-major 3x3 (linear RGB)
+        val colorOffset: FloatArray = floatArrayOf(0f, 0f, 0f), // 3 elements, RGB additive offset (sRGB space)
         val saturationBoost: Float = 1.0f,
         val uvProxyWeight: Float = 0.0f,
         val displayName: String,
@@ -79,6 +88,55 @@ object VisionColorFilter {
         0f, 0f, 1f
     )
 
+    // Eagle: Tetrachromatic + extreme acuity (4-8x human)
+    // Enhanced color separation with brightness offset from 4x5 column 5
+    private val EAGLE_MATRIX = floatArrayOf(
+         1.40f, -0.20f, -0.10f,
+        -0.10f,  1.30f, -0.10f,
+        -0.10f, -0.20f,  1.50f
+    )
+    private val EAGLE_OFFSET = floatArrayOf(0.10f, 0.10f, 0.20f)
+
+    // Horse: Dichromatic (S ~428nm, L ~539nm), red/green collapse to muddy yellow
+    private val HORSE_MATRIX = floatArrayOf(
+        0.15f, 0.65f, 0.20f,
+        0.10f, 0.55f, 0.35f,
+        0.05f, 0.25f, 0.70f
+    )
+
+    // Mantis Shrimp: 12-16 photoreceptor types + UV + polarization
+    // Hypersaturated "impossible colors" approximation
+    private val MANTIS_SHRIMP_MATRIX = floatArrayOf(
+         1.30f, -0.20f,  0.10f,
+        -0.10f,  1.40f, -0.10f,
+         0.20f, -0.30f,  1.50f
+    )
+
+    // Reindeer: UV-sensitive vision for snow/trail navigation
+    // UV reflectance mapped to blue channel boost
+    private val REINDEER_MATRIX = floatArrayOf(
+        0.80f, 0.10f, 0.40f,
+        0.20f, 1.00f, 0.30f,
+        0.30f, 0.20f, 1.40f
+    )
+    private val REINDEER_OFFSET = floatArrayOf(0f, 0f, 0.20f)
+
+    // Cuttlefish: Polarization sensitivity + W-shaped pupils
+    // Enhanced specular/shiny surface detection
+    private val CUTTLEFISH_MATRIX = floatArrayOf(
+         0.90f,  0.20f, -0.10f,
+         0.10f,  0.80f,  0.10f,
+        -0.10f,  0.10f,  1.10f
+    )
+    private val CUTTLEFISH_OFFSET = floatArrayOf(0.10f, 0.10f, 0.20f)
+
+    // Pit Viper: Infrared pit organs — luminance → thermal red channel
+    private val PIT_VIPER_MATRIX = floatArrayOf(
+        0.30f, 0.60f, 0.10f,
+        0.00f, 0.00f, 0.00f,
+        0.00f, 0.00f, 0.00f
+    )
+
     fun getParams(mode: VisionMode): VisionParams = when (mode) {
         VisionMode.HUMAN -> VisionParams(
             matrix = IDENTITY,
@@ -101,6 +159,44 @@ object VisionColorFilter {
             uvProxyWeight = 0.30f,
             displayName = "Bird Vision",
             description = "Tetrachromatic approximation — enhanced saturation with UV proxy"
+        )
+        VisionMode.EAGLE -> VisionParams(
+            matrix = EAGLE_MATRIX,
+            colorOffset = EAGLE_OFFSET,
+            saturationBoost = 1.20f,
+            displayName = "Eagle Vision",
+            description = "Tetrachromatic + 4-8× acuity — extreme color separation and brightness"
+        )
+        VisionMode.HORSE -> VisionParams(
+            matrix = HORSE_MATRIX,
+            displayName = "Horse Vision",
+            description = "Dichromatic (S=428nm L=539nm) — blue-yellow world, red/green collapse"
+        )
+        VisionMode.MANTIS_SHRIMP -> VisionParams(
+            matrix = MANTIS_SHRIMP_MATRIX,
+            saturationBoost = 1.80f,
+            uvProxyWeight = 0.40f,
+            displayName = "Mantis Shrimp",
+            description = "12-16 receptor types — hypersaturated with UV + polarization proxy"
+        )
+        VisionMode.REINDEER -> VisionParams(
+            matrix = REINDEER_MATRIX,
+            colorOffset = REINDEER_OFFSET,
+            uvProxyWeight = 0.50f,
+            displayName = "Reindeer Vision",
+            description = "UV-sensitive — snow/trail navigation with UV → cyan glow"
+        )
+        VisionMode.CUTTLEFISH -> VisionParams(
+            matrix = CUTTLEFISH_MATRIX,
+            colorOffset = CUTTLEFISH_OFFSET,
+            saturationBoost = 1.15f,
+            displayName = "Cuttlefish Vision",
+            description = "Polarization-sensitive W-pupil — enhanced specular surface detection"
+        )
+        VisionMode.PIT_VIPER -> VisionParams(
+            matrix = PIT_VIPER_MATRIX,
+            displayName = "Pit Viper Vision",
+            description = "Infrared pit organs — luminance mapped to thermal red"
         )
         VisionMode.RED_ONLY -> VisionParams(
             matrix = RED_ONLY_MATRIX,

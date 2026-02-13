@@ -31,6 +31,7 @@ class VisionColorFilterTest {
         assertArrayEquals(expected, params.matrix, 0.0001f)
         assertEquals(1.0f, params.saturationBoost, 0.0001f)
         assertEquals(0.0f, params.uvProxyWeight, 0.0001f)
+        assertArrayEquals(floatArrayOf(0f, 0f, 0f), params.colorOffset, 0.0001f)
     }
 
     @Test
@@ -55,6 +56,14 @@ class VisionColorFilterTest {
         VisionColorFilter.VisionMode.values().forEach { mode ->
             val params = VisionColorFilter.getParams(mode)
             assertEquals("Mode $mode matrix should have 9 elements", 9, params.matrix.size)
+        }
+    }
+
+    @Test
+    fun allModesHaveThreeElementOffset() {
+        VisionColorFilter.VisionMode.values().forEach { mode ->
+            val params = VisionColorFilter.getParams(mode)
+            assertEquals("Mode $mode offset should have 3 elements", 3, params.colorOffset.size)
         }
     }
 
@@ -94,6 +103,66 @@ class VisionColorFilterTest {
         assertEquals(-0.011820f, m[6], 0.0001f)
         assertEquals(0.042940f, m[7], 0.0001f)
         assertEquals(0.968881f, m[8], 0.0001f)
+    }
+
+    // ── New animal mode tests ───────────────────────────────────────────
+
+    @Test
+    fun eagleHasOffsetAndSaturation() {
+        val params = VisionColorFilter.getParams(VisionColorFilter.VisionMode.EAGLE)
+        assertEquals("Eagle Vision", params.displayName)
+        assertEquals(1.20f, params.saturationBoost, 0.001f)
+        assertArrayEquals(floatArrayOf(0.10f, 0.10f, 0.20f), params.colorOffset, 0.001f)
+    }
+
+    @Test
+    fun horseIsDichromatic() {
+        val params = VisionColorFilter.getParams(VisionColorFilter.VisionMode.HORSE)
+        assertEquals("Horse Vision", params.displayName)
+        assertEquals(1.0f, params.saturationBoost, 0.0001f)
+        assertArrayEquals(floatArrayOf(0f, 0f, 0f), params.colorOffset, 0.0001f)
+        assertRowSum(params.matrix, 0, 1.0f, 0.01f)
+        assertRowSum(params.matrix, 1, 1.0f, 0.01f)
+        assertRowSum(params.matrix, 2, 1.0f, 0.01f)
+    }
+
+    @Test
+    fun mantisShrimpHasHypersaturation() {
+        val params = VisionColorFilter.getParams(VisionColorFilter.VisionMode.MANTIS_SHRIMP)
+        assertEquals("Mantis Shrimp", params.displayName)
+        assertEquals(1.80f, params.saturationBoost, 0.001f)
+        assertEquals(0.40f, params.uvProxyWeight, 0.001f)
+    }
+
+    @Test
+    fun reindeerHasUvAndOffset() {
+        val params = VisionColorFilter.getParams(VisionColorFilter.VisionMode.REINDEER)
+        assertEquals("Reindeer Vision", params.displayName)
+        assertEquals(0.50f, params.uvProxyWeight, 0.001f)
+        assertArrayEquals(floatArrayOf(0f, 0f, 0.20f), params.colorOffset, 0.001f)
+    }
+
+    @Test
+    fun cuttlefishHasOffsetAndSaturation() {
+        val params = VisionColorFilter.getParams(VisionColorFilter.VisionMode.CUTTLEFISH)
+        assertEquals("Cuttlefish Vision", params.displayName)
+        assertEquals(1.15f, params.saturationBoost, 0.001f)
+        assertArrayEquals(floatArrayOf(0.10f, 0.10f, 0.20f), params.colorOffset, 0.001f)
+    }
+
+    @Test
+    fun pitViperIsThermalRed() {
+        val params = VisionColorFilter.getParams(VisionColorFilter.VisionMode.PIT_VIPER)
+        assertEquals("Pit Viper Vision", params.displayName)
+        val m = params.matrix
+        // Only the red row has nonzero values (luminance → red)
+        assertTrue(m[0] > 0f && m[1] > 0f && m[2] > 0f) // red row active
+        assertEquals(0f, m[3], 0.0001f) // green row zeroed
+        assertEquals(0f, m[4], 0.0001f)
+        assertEquals(0f, m[5], 0.0001f)
+        assertEquals(0f, m[6], 0.0001f) // blue row zeroed
+        assertEquals(0f, m[7], 0.0001f)
+        assertEquals(0f, m[8], 0.0001f)
     }
 
     // Helper: assert sum of row i (3 elements starting at i*3) equals expected

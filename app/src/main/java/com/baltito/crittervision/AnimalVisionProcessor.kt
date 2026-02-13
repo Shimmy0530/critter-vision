@@ -53,6 +53,7 @@ class AnimalVisionProcessor : SurfaceProcessor {
             varying vec2 vTexCoord;
             uniform samplerExternalOES uTexture;
             uniform mat3 uColorMatrix;
+            uniform vec3 uColorOffset;
             uniform float uSaturationBoost;
             uniform float uUvProxyWeight;
             uniform float uIntensity;
@@ -98,6 +99,9 @@ class AnimalVisionProcessor : SurfaceProcessor {
 
                 // Step 3: Back to sRGB
                 vec3 result = linearToSrgb(transformed);
+
+                // Step 3.5: Additive color offset (display space, e.g. eagle brightness boost)
+                result = clamp(result + uColorOffset, 0.0, 1.0);
 
                 // Step 4: Saturation boost (bird mode — simulates oil droplet narrowing)
                 if (uSaturationBoost > 1.001) {
@@ -165,6 +169,7 @@ class AnimalVisionProcessor : SurfaceProcessor {
     private var uTexMatrixLoc = 0
     private var uTextureLoc = 0
     private var uColorMatrixLoc = 0
+    private var uColorOffsetLoc = 0
     private var uSatBoostLoc = 0
     private var uUvProxyLoc = 0
     private var uIntensityLoc = 0
@@ -176,6 +181,7 @@ class AnimalVisionProcessor : SurfaceProcessor {
 
     // Vision parameters — volatile for thread-safe reads from GL thread
     @Volatile var colorMatrix = floatArrayOf(1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f)
+    @Volatile var colorOffset = floatArrayOf(0f, 0f, 0f)
     @Volatile var saturationBoost = 1.0f
     @Volatile var uvProxyWeight = 0.0f
     @Volatile var intensity = 1.0f
@@ -187,6 +193,7 @@ class AnimalVisionProcessor : SurfaceProcessor {
      */
     fun setVisionParams(params: VisionColorFilter.VisionParams, intensity: Float = 1.0f) {
         this.colorMatrix = params.matrix.copyOf()
+        this.colorOffset = params.colorOffset.copyOf()
         this.saturationBoost = params.saturationBoost
         this.uvProxyWeight = params.uvProxyWeight
         this.intensity = intensity
@@ -287,6 +294,10 @@ class AnimalVisionProcessor : SurfaceProcessor {
             cm[2], cm[5], cm[8]
         )
         GLES20.glUniformMatrix3fv(uColorMatrixLoc, 1, false, glMatrix, 0)
+
+        // Color offset (display-space additive)
+        val co = colorOffset
+        GLES20.glUniform3fv(uColorOffsetLoc, 1, co, 0)
 
         // Vision parameters
         GLES20.glUniform1f(uSatBoostLoc, saturationBoost)
@@ -390,6 +401,7 @@ class AnimalVisionProcessor : SurfaceProcessor {
         uTexMatrixLoc = GLES20.glGetUniformLocation(program, "uTexMatrix")
         uTextureLoc = GLES20.glGetUniformLocation(program, "uTexture")
         uColorMatrixLoc = GLES20.glGetUniformLocation(program, "uColorMatrix")
+        uColorOffsetLoc = GLES20.glGetUniformLocation(program, "uColorOffset")
         uSatBoostLoc = GLES20.glGetUniformLocation(program, "uSaturationBoost")
         uUvProxyLoc = GLES20.glGetUniformLocation(program, "uUvProxyWeight")
         uIntensityLoc = GLES20.glGetUniformLocation(program, "uIntensity")
