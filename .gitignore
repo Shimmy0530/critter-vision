@@ -32,3 +32,5 @@ google-services.json
 # Android Profiling
 *.hprof
 compass_artifact_wf-f2d11876-0077-4779-90da-dd05955c510b_text_markdown.md
+nul
+.claude/settings.local.json

@@ -73,12 +73,12 @@ class VisionColorFilterTest {
         val green = VisionColorFilter.getParams(VisionColorFilter.VisionMode.GREEN_ONLY).matrix
         val blue = VisionColorFilter.getParams(VisionColorFilter.VisionMode.BLUE_ONLY).matrix
 
-        // Red channel copied to all rows
-        assertArrayEquals(floatArrayOf(1f, 0f, 0f, 1f, 0f, 0f, 1f, 0f, 0f), red, 0.0001f)
-        // Green channel copied to all rows
-        assertArrayEquals(floatArrayOf(0f, 1f, 0f, 0f, 1f, 0f, 0f, 1f, 0f), green, 0.0001f)
-        // Blue channel copied to all rows
-        assertArrayEquals(floatArrayOf(0f, 0f, 1f, 0f, 0f, 1f, 0f, 0f, 1f), blue, 0.0001f)
+        // Red channel only — zeroes green and blue output rows
+        assertArrayEquals(floatArrayOf(1f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f), red, 0.0001f)
+        // Green channel only — zeroes red and blue output rows
+        assertArrayEquals(floatArrayOf(0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f), green, 0.0001f)
+        // Blue channel only — zeroes red and green output rows
+        assertArrayEquals(floatArrayOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 1f), blue, 0.0001f)
     }
 
     @Test

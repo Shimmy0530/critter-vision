@@ -60,22 +60,22 @@ object VisionColorFilter {
         -0.05f, -0.15f,  1.40f
     )
 
-    // Debug: channel isolation as grayscale
+    // Debug: channel isolation as color
     private val RED_ONLY_MATRIX = floatArrayOf(
         1f, 0f, 0f,
-        1f, 0f, 0f,
-        1f, 0f, 0f
+        0f, 0f, 0f,
+        0f, 0f, 0f
     )
 
     private val GREEN_ONLY_MATRIX = floatArrayOf(
+        0f, 0f, 0f,
         0f, 1f, 0f,
-        0f, 1f, 0f,
-        0f, 1f, 0f
+        0f, 0f, 0f
     )
 
     private val BLUE_ONLY_MATRIX = floatArrayOf(
-        0f, 0f, 1f,
-        0f, 0f, 1f,
+        0f, 0f, 0f,
+        0f, 0f, 0f,
         0f, 0f, 1f
     )
 
