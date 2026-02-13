@@ -8,7 +8,11 @@
       "Bash(git stash:*)",
       "Bash(git add:*)",
       "Bash(gh pr close:*)",
-      "Bash(./gradlew.bat assembleDebug:*)"
+      "Bash(./gradlew.bat assembleDebug:*)",
+      "Bash(./gradlew tasks:*)",
+      "Bash(dir:*)",
+      "Bash(xargs:*)",
+      "Bash(git push:*)"
     ]
   }
 }
