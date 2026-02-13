@@ -37,15 +37,15 @@ Camera → CameraX Preview UseCase
 
 ### Key files
 
-- **`AnimalVisionProcessor.kt`** — OpenGL ES 2.0 SurfaceProcessor. Manages EGL context, compiles GLSL shaders, renders on a dedicated `HandlerThread`. The fragment shader pipeline: sRGB linearization → 3x3 color matrix → sRGB encoding → optional saturation boost → optional UV proxy → intensity blend.
+- **`AnimalVisionProcessor.kt`** — OpenGL ES 2.0 SurfaceProcessor. Manages EGL context, compiles GLSL shaders, renders on a dedicated `HandlerThread`. The fragment shader pipeline: sRGB linearization → 3x3 color matrix → sRGB encoding → vec3 color offset → optional saturation boost → optional UV proxy → intensity blend.
 - **`AnimalVisionEffect.kt`** — Thin CameraEffect wrapper passing the processor to CameraX.
-- **`VisionColorFilter.kt`** — `VisionMode` enum + `VisionParams` data class holding 3x3 matrices (row-major, linear RGB), saturation boost, and UV proxy weight. Matrices are transposed to column-major when uploaded to GLSL uniforms.
-- **`MainActivity.kt`** — Sets up PreviewView, binds CameraX with `UseCaseGroup.addEffect()`, wires filter buttons and intensity slider. Filter changes just update `@Volatile` fields on the processor — no shader recompilation.
+- **`VisionColorFilter.kt`** — `VisionMode` enum (13 modes: Human, Dog, Cat, Bird, Eagle, Horse, Mantis Shrimp, Reindeer, Cuttlefish, Pit Viper + 3 debug) + `VisionParams` data class holding 3x3 matrix (row-major, linear RGB), 3-element colorOffset (sRGB space), saturation boost, and UV proxy weight. Matrices transposed to column-major for GLSL uniforms.
+- **`MainActivity.kt`** — Sets up PreviewView, binds CameraX with `UseCaseGroup.addEffect()`, creates vision buttons programmatically in two rows: scrollable `HorizontalScrollView` for 9 animal modes, fixed equal-width `LinearLayout` for Human + 3 debug channels. Filter changes just update `@Volatile` fields on the processor — no shader recompilation.
 
 ### Threading model
 
 - GL operations run on a dedicated `HandlerThread` ("AnimalVisionGL")
-- Vision parameters (`colorMatrix`, `saturationBoost`, `uvProxyWeight`, `intensity`) are `@Volatile` for lock-free reads from the GL thread
+- Vision parameters (`colorMatrix`, `colorOffset`, `saturationBoost`, `uvProxyWeight`, `intensity`) are `@Volatile` for lock-free reads from the GL thread
 - CameraX callbacks (`onInputSurface`, `onOutputSurface`) post work to the GL handler
 
 ## Color Science
@@ -55,6 +55,12 @@ All matrices operate on **linear RGB** (sRGB linearized in shader). Row sums ≈
 - **Dog**: Machado et al. 2009 deuteranopia severity=1.0 — peer-reviewed, used by Chrome/Firefox accessibility tools
 - **Cat**: Viénot/Brettel method at S=450nm L=554nm + 0.625 desaturation blend — no published cat-specific matrix exists; the desaturation factor models low cone density (25:1 rod:cone ratio)
 - **Bird**: Heuristic spectral shift from Hart 2001 cone data + saturation ×1.35 (oil droplet narrowing) + UV proxy (true tetrachromacy is unrepresentable in 3-channel RGB)
+- **Eagle**: Tetrachromatic + 4-8× acuity; enhanced color separation with sRGB brightness offset
+- **Horse**: Dichromatic (S=428nm L=539nm); red/green collapse to muddy yellow
+- **Mantis Shrimp**: 12-16 receptor hypersaturation (×1.80) + UV proxy (0.40)
+- **Reindeer**: UV-sensitive; blue channel offset for snow/trail UV glow
+- **Cuttlefish**: Polarization-sensitive; subtle saturation boost (×1.15) + brightness offset
+- **Pit Viper**: Infrared pit organs; luminance → thermal red mapping (G/B zeroed)
 
 ## Project Config
 
