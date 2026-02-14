@@ -18,6 +18,7 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - uses: actions/gradle-build-tools-actions/dependency-submission@latest
+      - name: 'Generate and submit dependency graph'
+        uses: gradle/actions/dependency-submission@v4
         with:
           build-root-directory: CritterVision
