@@ -17,7 +17,7 @@ export JAVA_HOME="C:/Program Files/Android/Android Studio/jbr"
 ./gradlew test --no-daemon
 
 # Run a single test class
-./gradlew testDebugUnitTest --tests "com.baltito.crittervision.VisionColorFilterTest" --no-daemon
+./gradlew testDebugUnitTest --tests "net.raccooncode.crittervision.VisionColorFilterTest" --no-daemon
 ```
 
 The `gradle-daemon-jvm.properties` enforces `toolchainVersion=21`. Uses Groovy Gradle (`build.gradle`), not Kotlin DSL.
@@ -64,6 +64,6 @@ All matrices operate on **linear RGB** (sRGB linearized in shader). Row sums ≈
 
 ## Project Config
 
-- Package: `com.baltito.crittervision`, Min SDK 26, Target SDK 34
+- Package: `net.raccooncode.crittervision`, Min SDK 26, Target SDK 34
 - CameraX 1.4.0 (camera-core, camera-camera2, camera-lifecycle, camera-view, camera-effects)
 - AGP 9.0 with built-in Kotlin (no explicit Kotlin plugin — managed by AGP), AndroidX, XML layouts (no Compose)

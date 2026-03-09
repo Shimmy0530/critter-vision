@@ -1,4 +1,4 @@
-package com.baltito.crittervision
+package net.raccooncode.crittervision
 
 import android.graphics.SurfaceTexture
 import android.opengl.EGL14

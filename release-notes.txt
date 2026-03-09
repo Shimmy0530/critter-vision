@@ -1,0 +1,3 @@
+v1.5.0
+- Repackaged app from com.baltito.crittervision to net.raccooncode.crittervision
+- Updated Firebase configuration for new package identity

@@ -1,4 +1,4 @@
-package com.baltito.crittervision
+package net.raccooncode.crittervision
 
 import android.Manifest
 import android.content.pm.PackageManager

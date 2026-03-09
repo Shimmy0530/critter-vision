@@ -1,4 +1,4 @@
-package com.baltito.crittervision
+package net.raccooncode.crittervision
 
 /**
  * Scientifically-validated animal vision simulation parameters.

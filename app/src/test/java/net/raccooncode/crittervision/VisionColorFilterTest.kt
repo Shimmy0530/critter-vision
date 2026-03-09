@@ -1,4 +1,4 @@
-package com.baltito.crittervision
+package net.raccooncode.crittervision
 
 import org.junit.Assert.*
 import org.junit.Test
