@@ -5,12 +5,11 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
-dependencyResolutionManagement { // Uncommented
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS) // Ensure this line is active
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
         mavenCentral()
-        // Potentially add other repositories like JitPack if ever needed by the project
     }
 }
 rootProject.name = "CritterVision"

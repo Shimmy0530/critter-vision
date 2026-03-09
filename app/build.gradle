@@ -49,6 +49,43 @@ android {
     }
 }
 
+// Force patched versions for vulnerable transitive dependencies (Dependabot alerts)
+configurations.configureEach {
+    resolutionStrategy.eachDependency { details ->
+        // HIGH: protobuf DoS (alerts #12, #27)
+        if (details.requested.group == 'com.google.protobuf' &&
+                (details.requested.name == 'protobuf-java' || details.requested.name == 'protobuf-kotlin')) {
+            details.useVersion '3.25.5'
+            details.because 'CVE: protobuf DoS via crafted input'
+        }
+        // HIGH: jose4j DoS via compressed JWE (alert #25)
+        if (details.requested.group == 'org.bitbucket.b_c' && details.requested.name == 'jose4j') {
+            details.useVersion '0.9.6'
+            details.because 'CVE: jose4j DoS via compressed JWE content'
+        }
+        // HIGH: JDOM2 XXE injection (alert #22)
+        if (details.requested.group == 'org.jdom' && details.requested.name == 'jdom2') {
+            details.useVersion '2.0.6.1'
+            details.because 'CVE: XML External Entity injection in JDOM'
+        }
+        // HIGH + MEDIUM + LOW: Netty — all modules to 4.1.129.Final (alerts #2,3,8,15-17,19-21,24)
+        if (details.requested.group == 'io.netty') {
+            details.useVersion '4.1.129.Final'
+            details.because 'CVE: multiple Netty vulnerabilities'
+        }
+        // MEDIUM: commons-lang3 uncontrolled recursion (alert #28)
+        if (details.requested.group == 'org.apache.commons' && details.requested.name == 'commons-lang3') {
+            details.useVersion '3.18.0'
+            details.because 'CVE: uncontrolled recursion on long inputs'
+        }
+        // MEDIUM: httpclient XSS (alert #26)
+        if (details.requested.group == 'org.apache.httpcomponents' && details.requested.name == 'httpclient') {
+            details.useVersion '4.5.13'
+            details.because 'CVE: cross-site scripting in Apache HttpClient'
+        }
+    }
+}
+
 dependencies {
 
     implementation 'androidx.appcompat:appcompat:1.6.1' // Ensure this is a recent version
