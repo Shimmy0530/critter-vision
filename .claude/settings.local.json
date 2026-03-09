@@ -18,7 +18,9 @@
       "mcp__plugin_firebase_firebase__firebase_list_projects",
       "mcp__plugin_firebase_firebase__firebase_update_environment",
       "mcp__plugin_firebase_firebase__firebase_create_app",
-      "mcp__plugin_firebase_firebase__firebase_get_sdk_config"
+      "mcp__plugin_firebase_firebase__firebase_get_sdk_config",
+      "Bash(gh api:*)",
+      "Bash(git:*)"
     ]
   }
 }
