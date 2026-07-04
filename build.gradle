@@ -1,4 +1,43 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+// Force patched versions of vulnerable transitive dependencies on the Gradle plugin
+// classpath (AGP / google-services / Firebase App Distribution). Dependabot flags these
+// against settings.gradle; they are build-time only and never ship in the APK.
+buildscript {
+    configurations.classpath {
+        resolutionStrategy.eachDependency { details ->
+            if (details.requested.group == 'io.netty') {
+                details.useVersion '4.1.135.Final'
+                details.because 'CVEs through 4.1.134: HTTP/2 reset/smuggling/DoS (alerts #2-49)'
+            }
+            if (details.requested.group == 'org.bouncycastle') {
+                details.useVersion '1.84'
+                details.because 'CVEs: GOST keystream reuse <=1.80.1, LDAP injection <1.84 (alerts #31, #32, #50)'
+            }
+            if (details.requested.group == 'org.bitbucket.b_c' && details.requested.name == 'jose4j') {
+                details.useVersion '0.9.6'
+                details.because 'CVE: DoS via compressed JWE content (alert #25)'
+            }
+            if (details.requested.group == 'org.jdom' && details.requested.name == 'jdom2') {
+                details.useVersion '2.0.6.1'
+                details.because 'CVE: XML External Entity injection (alert #22)'
+            }
+            if (details.requested.group == 'org.apache.commons' && details.requested.name == 'commons-lang3') {
+                details.useVersion '3.18.0'
+                details.because 'CVE: uncontrolled recursion on long inputs (alert #28)'
+            }
+            if (details.requested.group == 'org.apache.httpcomponents' && details.requested.name == 'httpclient') {
+                details.useVersion '4.5.14'
+                details.because 'CVE: XSS in Apache HttpClient <4.5.13 (alert #26)'
+            }
+            if (details.requested.group == 'com.google.protobuf' && details.requested.name.startsWith('protobuf-')) {
+                details.useVersion '3.25.5'
+                details.because 'CVE: protobuf DoS via crafted input (alerts #12, #27)'
+            }
+        }
+    }
+}
+
 plugins {
     id 'com.android.application' version '9.0.0' apply false
     id 'com.android.library' version '9.0.0' apply false

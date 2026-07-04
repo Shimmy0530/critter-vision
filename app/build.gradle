@@ -68,10 +68,15 @@ configurations.configureEach {
             details.useVersion '2.0.6.1'
             details.because 'CVE: XML External Entity injection in JDOM'
         }
-        // HIGH + MEDIUM + LOW: Netty — all modules to 4.1.129.Final (alerts #2,3,8,15-17,19-21,24)
+        // HIGH + MEDIUM + LOW: Netty — all modules to 4.1.135.Final (alerts through #49)
         if (details.requested.group == 'io.netty') {
-            details.useVersion '4.1.129.Final'
+            details.useVersion '4.1.135.Final'
             details.because 'CVE: multiple Netty vulnerabilities'
+        }
+        // CRITICAL/MEDIUM: BouncyCastle GOST keystream reuse + LDAP injection (alerts #31, #32, #50)
+        if (details.requested.group == 'org.bouncycastle') {
+            details.useVersion '1.84'
+            details.because 'CVE: GOST keystream reuse, LDAP injection'
         }
         // MEDIUM: commons-lang3 uncontrolled recursion (alert #28)
         if (details.requested.group == 'org.apache.commons' && details.requested.name == 'commons-lang3') {
