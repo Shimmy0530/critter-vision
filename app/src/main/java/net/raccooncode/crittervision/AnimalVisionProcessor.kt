@@ -178,6 +178,7 @@ class AnimalVisionProcessor : SurfaceProcessor {
     private val vertexBuffer: FloatBuffer = createFloatBuffer(QUAD_VERTICES)
     private val texCoordBuffer: FloatBuffer = createFloatBuffer(QUAD_TEX_COORDS)
     private val texMatrix = FloatArray(16)
+    private val finalTexMatrix = FloatArray(16)
 
     // Vision parameters — volatile for thread-safe reads from GL thread
     @Volatile var colorMatrix = floatArrayOf(1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f)
@@ -208,6 +209,12 @@ class AnimalVisionProcessor : SurfaceProcessor {
         glHandler.post {
             ensureGlInitialized()
 
+            // Release any previous input (a new request can arrive on rotation/fold)
+            if (inputTextureId != 0) {
+                GLES20.glDeleteTextures(1, intArrayOf(inputTextureId), 0)
+                inputTextureId = 0
+            }
+
             // Create OES texture for camera input
             val texIds = IntArray(1)
             GLES20.glGenTextures(1, texIds, 0)
@@ -228,7 +235,10 @@ class AnimalVisionProcessor : SurfaceProcessor {
                 Log.d(TAG, "Input surface released: code=${result.resultCode}")
                 surface.release()
                 surfaceTexture.release()
-                inputSurfaceTexture = null
+                // Only clear if a newer input hasn't already replaced this one
+                if (inputSurfaceTexture === surfaceTexture) {
+                    inputSurfaceTexture = null
+                }
             }
         }
     }
@@ -245,8 +255,12 @@ class AnimalVisionProcessor : SurfaceProcessor {
             outputSurface = surfaceOutput.getSurface(glExecutor) { _ ->
                 Log.d(TAG, "Output surface event: requestClose")
                 glHandler.post {
-                    releaseOutputSurface()
-                    surfaceOutput.close()
+                    if (outputSurfaceOutput === surfaceOutput) {
+                        releaseOutputSurface()
+                    } else {
+                        // Already replaced by a newer output; just close this one
+                        surfaceOutput.close()
+                    }
                 }
             }
             outputWidth = size.width
@@ -264,12 +278,30 @@ class AnimalVisionProcessor : SurfaceProcessor {
     // ── Rendering ───────────────────────────────────────────────────────
 
     private fun renderFrame() {
-        val st = inputSurfaceTexture ?: return
-        if (outputEglSurface == EGL14.EGL_NO_SURFACE) return
+        try {
+            renderFrameInternal()
+        } catch (e: Exception) {
+            // A frame can race surface teardown (fold, rotation, backgrounding).
+            // Dropping it is fine; crashing the GL HandlerThread kills the app.
+            Log.w(TAG, "Dropped frame: ${e.message}")
+        }
+    }
 
-        // Latch the latest camera frame
+    private fun renderFrameInternal() {
+        val st = inputSurfaceTexture ?: return
+
+        // Always latch the latest camera frame, even if the output isn't ready yet —
+        // otherwise the camera's buffer queue backs up and the stream stalls.
         st.updateTexImage()
         st.getTransformMatrix(texMatrix)
+
+        val output = outputSurfaceOutput
+        if (output == null || outputEglSurface == EGL14.EGL_NO_SURFACE) return
+
+        // SurfaceProcessor contract: let CameraX add its rotation/crop transform.
+        // Skipping this renders distorted/rotated frames on devices whose sensor
+        // orientation or crop rect differs from the output (most physical phones).
+        output.updateTransformMatrix(finalTexMatrix, texMatrix)
 
         // Make output surface current
         EGL14.eglMakeCurrent(eglDisplay, outputEglSurface, outputEglSurface, eglContext)
@@ -283,8 +315,8 @@ class AnimalVisionProcessor : SurfaceProcessor {
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, inputTextureId)
         GLES20.glUniform1i(uTextureLoc, 0)
 
-        // Texture transform (handles camera rotation/flip)
-        GLES20.glUniformMatrix4fv(uTexMatrixLoc, 1, false, texMatrix, 0)
+        // Texture transform (handles camera rotation/flip + CameraX crop/rotation)
+        GLES20.glUniformMatrix4fv(uTexMatrixLoc, 1, false, finalTexMatrix, 0)
 
         // Color matrix — transpose from row-major (science) to column-major (GLSL)
         val cm = colorMatrix
@@ -315,7 +347,9 @@ class AnimalVisionProcessor : SurfaceProcessor {
 
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
 
-        EGL14.eglSwapBuffers(eglDisplay, outputEglSurface)
+        if (!EGL14.eglSwapBuffers(eglDisplay, outputEglSurface)) {
+            checkEglError("eglSwapBuffers")
+        }
     }
 
     // ── EGL + Shader initialization ─────────────────────────────────────
@@ -428,10 +462,13 @@ class AnimalVisionProcessor : SurfaceProcessor {
 
     private fun releaseOutputSurface() {
         if (outputEglSurface != EGL14.EGL_NO_SURFACE) {
+            // Rebind the pbuffer so we never destroy a surface that is still current
+            EGL14.eglMakeCurrent(eglDisplay, pbufferSurface, pbufferSurface, eglContext)
             EGL14.eglDestroySurface(eglDisplay, outputEglSurface)
             outputEglSurface = EGL14.EGL_NO_SURFACE
         }
         outputSurface = null
+        outputSurfaceOutput?.close()
         outputSurfaceOutput = null
     }
 

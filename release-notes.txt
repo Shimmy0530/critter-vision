@@ -1,3 +1,6 @@
-v1.5.0
-- Repackaged app from com.baltito.crittervision to net.raccooncode.crittervision
-- Updated Firebase configuration for new package identity
+v1.5.1
+- Fixed distorted/rotated camera preview on physical devices (CameraX transform matrix now applied)
+- Filter selection no longer resets to Human when rotating or folding the phone
+- Camera no longer stalls while the output surface is being set up
+- Render errors during rotation/backgrounding now drop a frame instead of crashing the app
+- Verified all 13 vision modes on Galaxy S24 Ultra (Android 16) and Pixel 9 emulator (API 35)
