@@ -48,6 +48,12 @@ Camera → CameraX Preview UseCase
 - Vision parameters (`colorMatrix`, `colorOffset`, `saturationBoost`, `uvProxyWeight`, `intensity`) are `@Volatile` for lock-free reads from the GL thread
 - CameraX callbacks (`onInputSurface`, `onOutputSurface`) post work to the GL handler
 
+### Device-specific gotchas
+
+- `renderFrame()` must apply `SurfaceOutput.updateTransformMatrix()` (CameraX SurfaceProcessor contract) — emulators render fine without it; physical devices show a rotated/distorted preview
+- MainActivity declares `android:configChanges`, so rotation/fold does NOT recreate the activity — filter state persists; don't rely on `onCreate` re-running
+- An uncaught exception on the "AnimalVisionGL" HandlerThread kills the whole app — `renderFrame` is try/catch-guarded; keep it that way
+
 ## Color Science
 
 All matrices operate on **linear RGB** (sRGB linearized in shader). Row sums ≈ 1.0 to preserve luminance.
@@ -67,3 +73,16 @@ All matrices operate on **linear RGB** (sRGB linearized in shader). Row sums ≈
 - Package: `net.raccooncode.crittervision`, Min SDK 26, Target SDK 34
 - CameraX 1.4.0 (camera-core, camera-camera2, camera-lifecycle, camera-view, camera-effects)
 - AGP 9.0 with built-in Kotlin (no explicit Kotlin plugin — managed by AGP), AndroidX, XML layouts (no Compose)
+
+## Device Testing
+
+- adb / emulator (not on PATH): `$LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe`, `$LOCALAPPDATA/Android/Sdk/emulator/emulator.exe`
+- Launch with virtual scene camera: `emulator -avd Pixel_9 -camera-back virtualscene` — the scene's checkerboard TV + green square make a good color-filter reference target
+- Quick deploy: `adb install -r app/build/outputs/apk/debug/app-debug.apk`, `adb shell pm grant net.raccooncode.crittervision android.permission.CAMERA`, `adb shell am start -n net.raccooncode.crittervision/.MainActivity`
+- Verify filters with `adb exec-out screencap -p > shot.png` + `adb logcat -s AnimalVisionProcessor MainActivity`
+
+## Release / Distribution
+
+- Firebase App Distribution (project `crittervision-b9a94`): `./gradlew appDistributionUploadDebug --releaseNotesFile=<path>` — the path MUST be absolute; a relative path fails with "Failed to read file"
+- No testers/groups configured in Gradle — add testers in the Firebase console after upload
+- Release flow: bump versionName (+0.0.1) and versionCode (+1) in `app/build.gradle`, update `release-notes.txt`, then `gh release create vX.Y.Z` with the APK attached
