@@ -22,5 +22,8 @@
       "Bash(gh api:*)",
       "Bash(git:*)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "technical-debt-analyzer"
+  ]
 }
